@@ -666,9 +666,13 @@ def get_idx0_hotspots(mappings, ppi_conf, binderlen):
             ), "Hotspot residues need to be provided in pdb-indexed form. E.g. A100,A103"
             hotspots = [(i[0], int(i[1:])) for i in ppi_conf.hotspot_res]
             hotspot_idx = []
-            for i, res in enumerate(mappings["receptor_con_ref_pdb_idx"]):
+            if "receptor_con_ref_pdb_idx" in mappings:
+              (idx,idx0) = (mappings["receptor_con_ref_pdb_idx"],mappings["receptor_con_hal_idx0"])
+            else:
+              (idx,idx0) = (mappings["con_ref_pdb_idx"],mappings["con_hal_idx0"])
+            for i, res in enumerate(idx):
                 if res in hotspots:
-                    hotspot_idx.append(mappings["receptor_con_hal_idx0"][i])
+                    hotspot_idx.append(idx0[i])
     return hotspot_idx
 
 
