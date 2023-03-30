@@ -1,0 +1,26 @@
+# Config for sampling symmetric assemblies.
+
+defaults:
+  - base
+
+inference:
+  # Symmetry to sample
+  # Available symmetries:
+  # - Cyclic symmetry (C_n) # call as c5
+  # - Dihedral symmetry (D_n) # call as d5
+  # - Tetrahedral symmetry # call as tetrahedral
+  # - Octahedral symmetry # call as octahedral
+  # - Icosahedral symmetry # call as icosahedral
+  symmetry: c2
+
+  # Set to true for computational efficiency 
+  # to avoid memory overhead of modeling all subunits.
+  model_only_neighbors: False
+
+  # Output directory of samples.
+  output_prefix: samples/c2
+
+contigmap:
+  # Specify a single integer value to sample unconditionally.
+  # Must be evenly divisible by the number of chains in the symmetry.
+  contigs: ['100']

@@ -1,0 +1,17 @@
+name: SE3nv
+channels:
+  - defaults
+  - pytorch
+  - dglteam
+dependencies:
+  - python=3.9
+  - pytorch=1.9
+  - torchaudio
+  - torchvision
+  - cudatoolkit=11.1
+  - dgl-cuda11.1
+  - icecream
+  - pip
+  - pip:
+    - hydra-core
+    - pyrsistent
