@@ -27,6 +27,10 @@ TOR_INDICES  = util.torsion_indices
 TOR_CAN_FLIP = util.torsion_can_flip
 REF_ANGLES   = util.reference_angles
 
+# Check for cache schedule
+if not os.path.exists(f'{SCRIPT_DIR}/../schedules'):
+    os.mkdir(f'{SCRIPT_DIR}/../schedules')
+
 class Sampler:
 
     def __init__(self, conf: DictConfig):
@@ -37,7 +41,7 @@ class Sampler:
         """
         self.initialized = False
         self.initialize(conf)
-    
+        
     def initialize(self, conf: DictConfig) -> None:
         """
         Initialize sampler.
@@ -113,7 +117,7 @@ class Sampler:
         self.potential_conf = self._conf.potentials
         self.diffuser_conf = self._conf.diffuser
         self.preprocess_conf = self._conf.preprocess
-        self.diffuser = Diffuser(**self._conf.diffuser)
+        self.diffuser = Diffuser(**self._conf.diffuser, cache_dir=f'{SCRIPT_DIR}/../schedules')
 
         ###########################
         ### Initialise Symmetry ###
