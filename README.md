@@ -21,9 +21,35 @@ RFdiffusion is an open source method for structure generation, with or without c
 - Binder design
 - Design diversification ("partial diffusion", sampling around a design)
 
----
+----
 
-## Getting started / installation
+# Table of contents
+
+- [RF*diffusion*](#rfdiffusion)
+  - [Description](#description)
+- [Table of contents](#table-of-contents)
+- [Getting started / installation](#getting-started--installation)
+    - [Conda Install SE3-Transformer](#conda-install-se3-transformer)
+    - [Get PPI Scaffold Examples](#get-ppi-scaffold-examples)
+- [Usage](#usage)
+    - [Running the diffusion script](#running-the-diffusion-script)
+    - [Basic execution - an unconditional monomer](#basic-execution---an-unconditional-monomer)
+    - [Motif Scaffolding](#motif-scaffolding)
+    - [The "active site" model holds very small motifs in place](#the-active-site-model-holds-very-small-motifs-in-place)
+    - [The `inpaint_seq` flag](#the-inpaint_seq-flag)
+    - [A note on `diffuser.T`](#a-note-on-diffusert)
+    - [Partial diffusion](#partial-diffusion)
+    - [Binder Design](#binder-design)
+    - [Fold Conditioning](#fold-conditioning)
+    - [Generation of Symmetric Oligomers](#generation-of-symmetric-oligomers)
+    - [Using Auxiliary Potentials](#using-auxiliary-potentials)
+    - [Symmetric Motif Scaffolding.](#symmetric-motif-scaffolding)
+    - [A Note on Model Weights](#a-note-on-model-weights)
+    - [Things you might want to play with at inference time](#things-you-might-want-to-play-with-at-inference-time)
+    - [Understanding the output files](#understanding-the-output-files)
+    - [Conclusion](#conclusion)
+
+# Getting started / installation
 
 Thanks to Sergey Ovchinnikov, RFdiffusion is available as a [Google Colab Notebook](https://colab.research.google.com/github/sokrypton/ColabDesign/blob/v1.1.1/rf/examples/diffusion.ipynb) if you would like to run it there!
 
