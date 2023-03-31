@@ -539,11 +539,12 @@ def parse_pdb(filename, **kwargs):
 
 def parse_pdb_lines(lines, parse_hetatom=False, ignore_het_h=True):
     # indices of residues observed in the structure
-    res = [
-        (l[22:26], l[17:20])
-        for l in lines
-        if l[:4] == "ATOM" and l[12:16].strip() == "CA"
-    ]
+    res, pdb_idx = [],[]
+    for l in lines:
+        if l[:4] == "ATOM" and l[12:16].strip() == "CA":
+            res.append((l[22:26], l[17:20]))
+            # chain letter, res num
+            pdb_idx.append((l[21:22].strip(), int(l[22:26].strip())))
     seq = [util.aa2num[r[1]] if r[1] in util.aa2num.keys() else 20 for r in res]
     pdb_idx = [
         (l[21:22].strip(), int(l[22:26].strip()))
@@ -562,16 +563,17 @@ def parse_pdb_lines(lines, parse_hetatom=False, ignore_het_h=True):
             " " + l[12:16].strip().ljust(3),
             l[17:20],
         )
-        idx = pdb_idx.index((chain, resNo))
-        # for i_atm, tgtatm in enumerate(util.aa2long[util.aa2num[aa]]):
-        for i_atm, tgtatm in enumerate(
-            util.aa2long[util.aa2num[aa]][:14]
-        ):  # Nate's proposed change
-            if (
-                tgtatm is not None and tgtatm.strip() == atom.strip()
-            ):  # ignore whitespace
-                xyz[idx, i_atm, :] = [float(l[30:38]), float(l[38:46]), float(l[46:54])]
-                break
+        if (chain,resNo) in pdb_idx:
+            idx = pdb_idx.index((chain, resNo))
+            # for i_atm, tgtatm in enumerate(util.aa2long[util.aa2num[aa]]):
+            for i_atm, tgtatm in enumerate(
+                util.aa2long[util.aa2num[aa]][:14]
+                ):
+                if (
+                    tgtatm is not None and tgtatm.strip() == atom.strip()
+                    ):  # ignore whitespace
+                    xyz[idx, i_atm, :] = [float(l[30:38]), float(l[38:46]), float(l[46:54])]
+                    break
 
     # save atom mask
     mask = np.logical_not(np.isnan(xyz[..., 0]))
