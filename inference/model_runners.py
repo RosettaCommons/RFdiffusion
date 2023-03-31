@@ -324,7 +324,7 @@ class Sampler:
             xyz_motif_prealign = xyz_mapped.clone()
             motif_prealign_com = xyz_motif_prealign[0,0,:,1].mean(dim=0)
             self.motif_com = xyz_27[contig_map.ref_idx0,1].mean(dim=0)
-            xyz_mapped = get_init_xyz(xyz_mapped).squeeze()
+            xyz_mapped = get_init_xyz(xyz_mapped, center=self.symmetry is None).squeeze()
             # adjust the size of the input atom map
             atom_mask_mapped = torch.full((L_mapped, 27), False)
             atom_mask_mapped[contig_map.hal_idx0] = mask_27[contig_map.ref_idx0]
@@ -351,6 +351,11 @@ class Sampler:
         seq_t[~self.mask_seq.squeeze()] = 21
         seq_t    = torch.nn.functional.one_hot(seq_t, num_classes=22).float() # [L,22]
         seq_orig = torch.nn.functional.one_hot(seq_orig, num_classes=22).float() # [L,22]
+
+        ############################################################################
+        if self.symmetry is not None:
+            xyz_mapped, seq_t = self.symmetry.apply_symmetry(xyz_mapped, seq_t)
+        ############################################################################
 
         fa_stack, xyz_true = self.diffuser.diffuse_pose(
             xyz_mapped,
