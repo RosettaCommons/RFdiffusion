@@ -4,22 +4,14 @@ import pickle
 import numpy as np
 import os
 import logging
-from typing import List
 
 from scipy.spatial.transform import Rotation as scipy_R
 
-from util import rigid_from_3_points
+from rfdiffusion.util import rigid_from_3_points
 
-from util import torsion_indices as TOR_INDICES
-from util import torsion_can_flip as TOR_CAN_FLIP
-from util import reference_angles as REF_ANGLES
+from rfdiffusion.util_module import ComputeAllAtomCoords
 
-from util_module import ComputeAllAtomCoords
-
-from diff_util import th_min_angle, th_interpolate_angles
-
-from chemical import INIT_CRDS
-import igso3
+from rfdiffusion import igso3
 import time
 
 torch.set_printoptions(sci_mode=False)

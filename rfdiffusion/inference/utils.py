@@ -1,21 +1,16 @@
 import numpy as np
 import os
-import sys
 from omegaconf import DictConfig
-from kinematics import xyz_to_t2d
 import torch
 import torch.nn.functional as nn
-from diffusion import get_beta_schedule
+from rfdiffusion.diffusion import get_beta_schedule
 from scipy.spatial.transform import Rotation as scipy_R
-from util import rigid_from_3_points
-from util_module import ComputeAllAtomCoords
-from potentials.manager import PotentialManager
-import util
+from rfdiffusion.util import rigid_from_3_points
+from rfdiffusion.util_module import ComputeAllAtomCoords
+from rfdiffusion import util
 import random
 import logging
-import string
-from inference import model_runners
-import hydra
+from rfdiffusion.inference import model_runners
 import glob
 
 ###########################################################

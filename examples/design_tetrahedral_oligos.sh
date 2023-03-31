@@ -7,7 +7,7 @@
 # We decay this potential with quadratic form, so that it is applied more strongly initially
 # We specify a total length of 1200aa, so each chain is 100 residues long
 
-python ../run_inference.py \
+python ../scripts/run_inference.py \
 --config-name=symmetry \
 inference.symmetry="tetrahedral" \
 inference.num_designs=10 \

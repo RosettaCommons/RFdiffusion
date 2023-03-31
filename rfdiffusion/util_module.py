@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from opt_einsum import contract as einsum
 import copy
 import dgl
-from util import base_indices, RTs_by_torsion, xyzs_in_base_frame, rigid_from_3_points
+from rfdiffusion.util import base_indices, RTs_by_torsion, xyzs_in_base_frame, rigid_from_3_points
 
 def init_lecun_normal(module, scale=1.0):
     def truncated_normal(uniform, mu=0.0, sigma=1.0, a=-2, b=2):

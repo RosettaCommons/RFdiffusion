@@ -1,6 +1,6 @@
 import torch
 import numpy as np 
-from util import generate_Cbeta
+from rfdiffusion.util import generate_Cbeta
 
 class Potential:
     '''

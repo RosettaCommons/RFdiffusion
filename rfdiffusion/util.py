@@ -1,9 +1,6 @@
-import sys
-import numpy as np
-import torch
 import scipy.sparse
-from chemical import *
-from scoring import *
+from rfdiffusion.chemical import *
+from rfdiffusion.scoring import *
 
 
 def generate_Cbeta(N, Ca, C):

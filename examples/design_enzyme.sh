@@ -13,4 +13,4 @@
 # We specify the identity of the substrate molecule (from which to apply the potential)
 # We then specify the we want to use the model weights fine tuned to scaffold small motifs (i.e. three single residues)
 
-../run_inference.py inference.output_prefix=example_outputs/design_enzyme inference.input_pdb=input_pdbs/5an7.pdb 'contigmap.contigs=[10-100/A1083-1083/10-100/A1051-1051/10-100/A1180-1180/10-100]' potentials.guide_scale=1 'potentials.guiding_potentials=["type:substrate_contacts,s:1,r_0:8,rep_r_0:5.0,rep_s:2,rep_r_min:1"]' potentials.substrate=LLK inference.ckpt_override_path=../models/ActiveSite_ckpt.pt
+../scripts/run_inference.py inference.output_prefix=example_outputs/design_enzyme inference.input_pdb=input_pdbs/5an7.pdb 'contigmap.contigs=[10-100/A1083-1083/10-100/A1051-1051/10-100/A1180-1180/10-100]' potentials.guide_scale=1 'potentials.guiding_potentials=["type:substrate_contacts,s:1,r_0:8,rep_r_0:5.0,rep_s:2,rep_r_min:1"]' potentials.substrate=LLK inference.ckpt_override_path=../models/ActiveSite_ckpt.pt

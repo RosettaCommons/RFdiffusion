@@ -1,6 +1,5 @@
 import torch
-from icecream import ic
-import potentials.potentials as potentials
+from rfdiffusion import potentials as potentials
 import numpy as np 
 
 
@@ -167,7 +166,7 @@ class PotentialManager:
                 kwargs.update({'contact_matrix':contact_matrix})
 
 
-            to_apply.append( potentials.implemented_potentials[potential_dict['type']](**kwargs) )
+            to_apply.append(potentials.implemented_potentials[potential_dict['type']](**kwargs))
 
         return to_apply
 
