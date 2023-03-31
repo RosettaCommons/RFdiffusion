@@ -1,12 +1,7 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from opt_einsum import contract as einsum
 import torch.utils.checkpoint as checkpoint
-from util import cross_product_matrix
-from util_module import *
-from Attention_module import *
-from SE3_network import SE3TransformerWrapper
+from rfdiffusion.util_module import *
+from rfdiffusion.Attention_module import *
+from rfdiffusion.SE3_network import SE3TransformerWrapper
 
 # Components for three-track blocks
 # 1. MSA -> MSA update (biased attention. bias from pair & structure)

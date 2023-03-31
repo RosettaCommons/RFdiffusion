@@ -17,4 +17,4 @@
 
 ckpt='../models/Base_epoch8_ckpt.pt'
 
-python ../run_inference.py inference.symmetry="C4" inference.num_designs=15 inference.output_prefix=example_outputs/design_nickel 'potentials.guiding_potentials=["type:olig_contacts,weight_intra:1,weight_inter:0.06"]' potentials.olig_intra_all=True potentials.olig_inter_all=True potentials.guide_scale=2 potentials.guide_decay="quadratic" inference.input_pdb=input_pdbs/nickel_symmetric_motif.pdb 'contigmap.contigs=[50/A2-4/50/0 50/A7-9/50/0 50/A12-14/50/0 50/A17-19/50/0]' inference.ckpt_override_path=$ckpt 
+python ../scripts/run_inference.py inference.symmetry="C4" inference.num_designs=15 inference.output_prefix=example_outputs/design_nickel 'potentials.guiding_potentials=["type:olig_contacts,weight_intra:1,weight_inter:0.06"]' potentials.olig_intra_all=True potentials.olig_inter_all=True potentials.guide_scale=2 potentials.guide_decay="quadratic" inference.input_pdb=input_pdbs/nickel_symmetric_motif.pdb 'contigmap.contigs=[50/A2-4/50/0 50/A7-9/50/0 50/A12-14/50/0 50/A17-19/50/0]' inference.ckpt_override_path=$ckpt

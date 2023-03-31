@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
-from Embeddings import MSA_emb, Extra_emb, Templ_emb, Recycling, Timestep_emb
-from Track_module import IterativeSimulator
-from AuxiliaryPredictor import DistanceNetwork, MaskedTokenNetwork, ExpResolvedNetwork, LDDTNetwork
-from util import INIT_CRDS
+from rfdiffusion.Embeddings import MSA_emb, Extra_emb, Templ_emb, Recycling, Timestep_emb
+from rfdiffusion.Track_module import IterativeSimulator
+from rfdiffusion.AuxiliaryPredictor import DistanceNetwork, MaskedTokenNetwork, ExpResolvedNetwork, LDDTNetwork
 from opt_einsum import contract as einsum
-from icecream import ic 
+
 
 class RoseTTAFoldModule(nn.Module):
     def __init__(self, 

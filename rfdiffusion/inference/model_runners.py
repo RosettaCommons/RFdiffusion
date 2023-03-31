@@ -1,35 +1,29 @@
 import torch
 import numpy as np
 from omegaconf import DictConfig, OmegaConf
-from RoseTTAFoldModel import RoseTTAFoldModule
-from kinematics import get_init_xyz, xyz_to_t2d
-from diffusion import Diffuser
-from chemical import seq2chars
-from util_module import ComputeAllAtomCoords
-from contigs import ContigMap
-from inference import utils as iu
-from potentials.manager import PotentialManager
-from inference import symmetry
+from rfdiffusion.RoseTTAFoldModel import RoseTTAFoldModule
+from rfdiffusion.kinematics import get_init_xyz, xyz_to_t2d
+from rfdiffusion.diffusion import Diffuser
+from rfdiffusion.chemical import seq2chars
+from rfdiffusion.util_module import ComputeAllAtomCoords
+from rfdiffusion.contigs import ContigMap
+from rfdiffusion.inference import utils as iu, symmetry
+from rfdiffusion.potentials.manager import PotentialManager
 import logging
 import torch.nn.functional as nn
-import util
-import hydra
+from rfdiffusion import util
 from hydra.core.hydra_config import HydraConfig
 import os
 
+from rfdiffusion.model_input_logger import pickle_function_call
 import sys
-SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
-sys.path.append(SCRIPT_DIR + '../') # to access RF structure prediction stuff 
 
-from model_input_logger import pickle_function_call
+SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
 
 TOR_INDICES  = util.torsion_indices
 TOR_CAN_FLIP = util.torsion_can_flip
 REF_ANGLES   = util.reference_angles
 
-# Check for cache schedule
-if not os.path.exists(f'{SCRIPT_DIR}/../schedules'):
-    os.mkdir(f'{SCRIPT_DIR}/../schedules')
 
 class Sampler:
 
@@ -66,6 +60,13 @@ class Sampler:
         ### Select Appropriate Model ###
         ################################
 
+        if conf.inference.model_directory_path is not None:
+            model_directory = conf.inference.model_directory_path
+        else:
+            model_directory = f"{SCRIPT_DIR}/../../models"
+
+        print(f"Reading models from {model_directory}")
+
         # Initialize inference only helper objects to Sampler
         if conf.inference.ckpt_override_path is not None:
             self.ckpt_path = conf.inference.ckpt_override_path
@@ -77,18 +78,18 @@ class Sampler:
                     # this is only used for partial diffusion
                     assert conf.diffuser.partial_T is not None, "The provide_seq input is specifically for partial diffusion"
                 if conf.scaffoldguided.scaffoldguided:
-                    self.ckpt_path=f'{SCRIPT_DIR}/../models/InpaintSeq_Fold_ckpt.pt'
+                    self.ckpt_path = f'{model_directory}/InpaintSeq_Fold_ckpt.pt'
                 else:
-                    self.ckpt_path = f'{SCRIPT_DIR}/../models/InpaintSeq_ckpt.pt'
+                    self.ckpt_path = f'{model_directory}/InpaintSeq_ckpt.pt'
             elif conf.ppi.hotspot_res is not None and conf.scaffoldguided.scaffoldguided is False:
                 # use complex trained model
-                self.ckpt_path = f'{SCRIPT_DIR}/../models/Complex_base_ckpt.pt'
+                self.ckpt_path = f'{model_directory}/Complex_base_ckpt.pt'
             elif conf.scaffoldguided.scaffoldguided is True:
                 # use complex and secondary structure-guided model
-                self.ckpt_path = f'{SCRIPT_DIR}/../models/Complex_Fold_base_ckpt.pt'
+                self.ckpt_path = f'{model_directory}/Complex_Fold_base_ckpt.pt'
             else:
                 # use default model
-                self.ckpt_path = f'{SCRIPT_DIR}/../models/Base_ckpt.pt'
+                self.ckpt_path = f'{model_directory}/Base_ckpt.pt'
         # for saving in trb file:
         assert self._conf.inference.trb_save_ckpt_path is None, "trb_save_ckpt_path is not the place to specify an input model. Specify in inference.ckpt_override_path"
         self._conf['inference']['trb_save_ckpt_path']=self.ckpt_path
@@ -117,7 +118,16 @@ class Sampler:
         self.potential_conf = self._conf.potentials
         self.diffuser_conf = self._conf.diffuser
         self.preprocess_conf = self._conf.preprocess
-        self.diffuser = Diffuser(**self._conf.diffuser, cache_dir=f'{SCRIPT_DIR}/../schedules')
+
+        if conf.inference.schedule_directory_path is not None:
+            schedule_directory = conf.inference.schedule_directory_path
+        else:
+            schedule_directory = f"{SCRIPT_DIR}/../../schedules"
+
+        # Check for cache schedule
+        if not os.path.exists(schedule_directory):
+            os.mkdir(schedule_directory)
+        self.diffuser = Diffuser(**self._conf.diffuser, cache_dir=schedule_directory)
 
         ###########################
         ### Initialise Symmetry ###
@@ -138,7 +148,7 @@ class Sampler:
         if self.inf_conf.input_pdb is None:
             # set default pdb
             script_dir=os.path.dirname(os.path.realpath(__file__))
-            self.inf_conf.input_pdb=os.path.join(script_dir, '../examples/input_pdbs/1qys.pdb')
+            self.inf_conf.input_pdb=os.path.join(script_dir, '../../examples/input_pdbs/1qys.pdb')
         self.target_feats = iu.process_target(self.inf_conf.input_pdb, parse_hetatom=True, center=False)
         self.chain_idx = None
 
@@ -494,7 +504,7 @@ class Sampler:
         ### alpha_t ###
         ###############
         seq_tmp = t1d[...,:-1].argmax(dim=-1).reshape(-1,L)
-        alpha, _, alpha_mask, _ = util.get_torsions(xyz_t.reshape(-1,L,27,3), seq_tmp, TOR_INDICES, TOR_CAN_FLIP, REF_ANGLES)
+        alpha, _, alpha_mask, _ = util.get_torsions(xyz_t.reshape(-1, L, 27, 3), seq_tmp, TOR_INDICES, TOR_CAN_FLIP, REF_ANGLES)
         alpha_mask = torch.logical_and(alpha_mask, ~torch.isnan(alpha[...,0]))
         alpha[torch.isnan(alpha)] = 0.0
         alpha = alpha.reshape(1,-1,L,10,2)

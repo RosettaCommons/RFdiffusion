@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from opt_einsum import contract as einsum
-from util_module import init_lecun_normal
+from rfdiffusion.util_module import init_lecun_normal
 
 class FeedForwardLayer(nn.Module):
     def __init__(self, d_model, r_ff, p_drop=0.1):

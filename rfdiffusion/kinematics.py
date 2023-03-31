@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from chemical import INIT_CRDS
+from rfdiffusion.chemical import INIT_CRDS
 
 PARAMS = {
     "DMIN"    : 2.0,

@@ -19,6 +19,8 @@ inference:
   final_step: 1
   deterministic: False
   trb_save_ckpt_path: null
+  schedule_directory_path: null
+  model_directory_path: null
 
 contigmap:
   contigs: null
