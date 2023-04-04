@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(name='rfdiffusion',
       version='1.0.0',
@@ -6,5 +6,5 @@ setup(name='rfdiffusion',
       author='Rosetta Commons',
       url='https://github.com/RosettaCommons/RFdiffusion',
       scripts=["scripts/run_inference.py"],
-      packages=["rfdiffusion"],
+      packages=find_packages(),
       install_requires=['torch', 'se3-transformer'])
