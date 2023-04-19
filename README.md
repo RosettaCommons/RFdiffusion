@@ -239,7 +239,7 @@ You can also keep parts of the sequence of the diffused chain fixed, if you want
 ```
 'contigmap.contigs=[100-100/0 20-20]' 'contigmap.provide_seq=[100-119]' diffuser.partial_T=10
 ```
-In this case, the 20aa chain is the helical peptide. The `contigmap.provide_seq` input is zero-indexed, and you can provide a range (so 100-119 is an inclusive range, unmasking the whole sequence of the peptide).
+In this case, the 20aa chain is the helical peptide. The `contigmap.provide_seq` input is zero-indexed, and you can provide a range (so 100-119 is an inclusive range, unmasking the whole sequence of the peptide). Multiple sequence ranges can be provided separated by a comma, e.g. `'contigmap.provide_seq=[0-10,20-30]'`.
 
 Note that the provide_seq option requires using a different model checkpoint, but this is automatically handled by the inference script.
 
