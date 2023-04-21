@@ -48,6 +48,7 @@ RFdiffusion is an open source method for structure generation, with or without c
     - [A Note on Model Weights](#a-note-on-model-weights)
     - [Things you might want to play with at inference time](#things-you-might-want-to-play-with-at-inference-time)
     - [Understanding the output files](#understanding-the-output-files)
+    - [Docker](#docker)
     - [Conclusion](#conclusion)
 
 # Getting started / installation
@@ -469,6 +470,33 @@ We output several different files.
         - `con_ref_idx0`/`con_hal_idx0` - These are the same as above, but 0 indexed, and without chain information. This is useful for splicing coordinates out (to assess alignment etc).
         - `inpaint_seq` - This details any residues that were masked during inference.
 3. Trajectory files. By default, we output the full trajectories into the `/traj/` folder. These files can be opened in pymol, as multi-step pdbs. Note that these are ordered in reverse, so the first pdb is technically the last (t=1) prediction made by RFdiffusion during inference. We include both the `pX0` predictions (what the model predicted at each timestep) and the `Xt-1` trajectories (what went into the model at each timestep).
+
+### Docker
+
+We have provided a Dockerfile at `docker/Dockerfile` to help run RFDiffusion on HPC and other container orchestration systems. Follow these steps to build and run the container on your system:
+
+1. Clone this repository with `git clone https://github.com/RosettaCommons/RFdiffusion.git` and then `cd RFdiffusion`
+1. Verify that the Docker daemon is running on your system with `docker info`. You can find Docker installation instructions for Mac, WIndows, and Linux in the [official Docker docs](https://docs.docker.com/get-docker/). You may also consider [Finch](https://github.com/runfinch/finch), the open source client for container development.
+1. Build the container image on your system with `docker build -f docker/Dockerfile -t rfdiffusion .`
+1. Create some folders on your file system with `mkdir $HOME/inputs $HOME/outputs $HOME/models`
+1. Download the RFDiffusion models with `bash scripts/download_models.sh $HOME/models`
+1. Download a test file (or another of your choice) with `wget -P $HOME/inputs https://files.rcsb.org/view/5TPN.pdb`
+1. Run the container with the following command:
+
+```bash
+docker run -it --rm --gpus all \
+  -v $HOME/models:$HOME/models \
+  -v $HOME/inputs:$HOME/inputs \
+  -v $HOME/outputs:$HOME/outputs \
+  rfdiffusion \
+  inference.output_prefix=$HOME/outputs/motifscaffolding \
+  inference.model_directory_path=$HOME/models \
+  inference.input_pdb=$HOME/inputs/5TPN.pdb \
+  inference.num_designs=3 \
+  'contigmap.contigs=[10-40/A163-181/10-40]'
+```
+
+  This starts the `rfdiffusion` container, mounts the models, inputs, and outputs folders, passes all available GPUs, and then calls the `run_inference.py` script with the parameters specified.
 
 ### Conclusion
 
