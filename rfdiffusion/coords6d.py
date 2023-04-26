@@ -1,23 +1,7 @@
 import numpy as np
 import scipy
 import scipy.spatial
-
-# calculate dihedral angles defined by 4 sets of points
-def get_dihedrals(a, b, c, d):
-
-    b0 = -1.0*(b - a)
-    b1 = c - b
-    b2 = d - c
-
-    b1 /= np.linalg.norm(b1, axis=-1)[:,None]
-
-    v = b0 - np.sum(b0*b1, axis=-1)[:,None]*b1
-    w = b2 - np.sum(b2*b1, axis=-1)[:,None]*b1
-
-    x = np.sum(v*w, axis=-1)
-    y = np.sum(np.cross(b1, v)*w, axis=-1)
-
-    return np.arctan2(y, x)
+from rfdiffusion.kinematics import get_dih
 
 # calculate planar angles defined by 3 sets of points
 def get_angles(a, b, c):
@@ -65,11 +49,10 @@ def get_coords6d(xyz, dmax):
 
     # matrix of Ca-Cb-Cb-Ca dihedrals
     omega6d = np.zeros((nres, nres), dtype=np.float32)
-    omega6d[idx0,idx1] = get_dihedrals(Ca[idx0], Cb[idx0], Cb[idx1], Ca[idx1])
-
+    omega6d[idx0,idx1] = get_dih(Ca[idx0], Cb[idx0], Cb[idx1], Ca[idx1])
     # matrix of polar coord theta
     theta6d = np.zeros((nres, nres), dtype=np.float32)
-    theta6d[idx0,idx1] = get_dihedrals(N[idx0], Ca[idx0], Cb[idx0], Cb[idx1])
+    theta6d[idx0,idx1] = get_dih(N[idx0], Ca[idx0], Cb[idx0], Cb[idx1])
 
     # matrix of polar coord phi
     phi6d = np.zeros((nres, nres), dtype=np.float32)

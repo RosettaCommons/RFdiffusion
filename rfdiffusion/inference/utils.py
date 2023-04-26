@@ -223,8 +223,6 @@ class Denoise:
         T,
         L,
         diffuser,
-        visible,
-        seq_diffuser=None,
         b_0=0.001,
         b_T=0.1,
         min_b=1.0,
@@ -256,7 +254,6 @@ class Denoise:
         self.T = T
         self.L = L
         self.diffuser = diffuser
-        self.seq_diffuser = seq_diffuser
         self.b_0 = b_0
         self.b_T = b_T
         self.noise_level = noise_level
@@ -301,8 +298,6 @@ class Denoise:
         Third, centre at origin
         """
 
-        # if True:
-        #    return px0
         def rmsd(V, W, eps=0):
             # First sum down atoms, then sum down xyz
             N = V.shape[-2]
@@ -358,17 +353,12 @@ class Denoise:
         px0[~atom_mask] = 0  # convert nans to 0
         px0 = px0.reshape(-1, 3) - px0_motif_mean
         px0_ = px0 @ R
-        # xT_motif_out = xT_motif.reshape(-1,3)
-        # xT_motif_out = (xT_motif_out @ R ) + px0_motif_mean
-        # ic(xT_motif_out.shape)
-        # xT_motif_out = xT_motif_out.reshape((diffusion_mask.sum(),3,3))
 
         # 3 put in same global position as xT
         px0_ = px0_ + xT_motif_mean
         px0_ = px0_.reshape([L, n_atom, 3])
         px0_[~atom_mask] = float("nan")
         return torch.Tensor(px0_)
-        # return torch.tensor(xT_motif_out)
 
     def get_potential_gradients(self, xyz, diffusion_mask):
         """

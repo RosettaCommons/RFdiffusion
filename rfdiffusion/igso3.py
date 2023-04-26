@@ -71,7 +71,7 @@ def igso3_score(R, t, L=L_default):
     unit_vector = np.einsum('Nij,Njk->Nik', R, log(R))/omega[:, None, None]
     return unit_vector * d_logf_d_omega(omega, t, L)[:, None, None]
 
-def calculate_igso3(*, num_sigma, num_omega, min_sigma, max_sigma, L=L_default):
+def calculate_igso3(*, num_sigma, num_omega, min_sigma, max_sigma):
     """calculate_igso3 pre-computes numerical approximations to the IGSO3 cdfs
     and score norms and expected squared score norms.
 

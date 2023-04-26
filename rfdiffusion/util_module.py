@@ -7,7 +7,7 @@ import copy
 import dgl
 from rfdiffusion.util import base_indices, RTs_by_torsion, xyzs_in_base_frame, rigid_from_3_points
 
-def init_lecun_normal(module, scale=1.0):
+def init_lecun_normal(module):
     def truncated_normal(uniform, mu=0.0, sigma=1.0, a=-2, b=2):
         normal = torch.distributions.normal.Normal(0, 1)
 
@@ -23,14 +23,14 @@ def init_lecun_normal(module, scale=1.0):
 
         return x
 
-    def sample_truncated_normal(shape, scale=1.0):
-        stddev = np.sqrt(scale/shape[-1])/.87962566103423978  # shape[-1] = fan_in
+    def sample_truncated_normal(shape):
+        stddev = np.sqrt(1.0/shape[-1])/.87962566103423978  # shape[-1] = fan_in
         return stddev * truncated_normal(torch.rand(shape))
 
     module.weight = torch.nn.Parameter( (sample_truncated_normal(module.weight.shape)) )
     return module
 
-def init_lecun_normal_param(weight, scale=1.0):
+def init_lecun_normal_param(weight):
     def truncated_normal(uniform, mu=0.0, sigma=1.0, a=-2, b=2):
         normal = torch.distributions.normal.Normal(0, 1)
 
@@ -46,8 +46,8 @@ def init_lecun_normal_param(weight, scale=1.0):
 
         return x
 
-    def sample_truncated_normal(shape, scale=1.0):
-        stddev = np.sqrt(scale/shape[-1])/.87962566103423978  # shape[-1] = fan_in
+    def sample_truncated_normal(shape):
+        stddev = np.sqrt(1.0/shape[-1])/.87962566103423978  # shape[-1] = fan_in
         return stddev * truncated_normal(torch.rand(shape))
 
     weight = torch.nn.Parameter( (sample_truncated_normal(weight.shape)) )

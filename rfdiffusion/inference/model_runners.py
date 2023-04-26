@@ -247,7 +247,6 @@ class Sampler:
             'L': L,
             'diffuser': self.diffuser,
             'potential_manager': self.potential_manager,
-            'visible': visible
         })
         return iu.Denoise(**denoise_kwargs)
 

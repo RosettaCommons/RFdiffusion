@@ -12,82 +12,6 @@ import math
 
 # Module contains classes and functions to generate initial embeddings
 
-def get_timestep_embedding(timesteps, embedding_dim, max_positions=10000):
-    # Code from https://github.com/hojonathanho/diffusion/blob/master/diffusion_tf/nn.py
-    assert len(timesteps.shape) == 1
-    half_dim = embedding_dim // 2
-    emb = math.log(max_positions) / (half_dim - 1)
-    
-    emb = torch.exp(torch.arange(half_dim, dtype=torch.float32, device=timesteps.device) * -emb)
-    emb = timesteps.float()[:, None] * emb[None, :]
-    emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=1)
-    if embedding_dim % 2 == 1:  # zero pad
-        emb = F.pad(emb, (0, 1), mode='constant')
-    assert emb.shape == (timesteps.shape[0], embedding_dim)
-    return emb
-
-class Timestep_emb(nn.Module):
-
-    def __init__(
-            self,
-            input_size,
-            output_size,
-            T, 
-            use_motif_timestep=True
-        ):
-        super(Timestep_emb, self).__init__()
-        
-        self.input_size = input_size 
-        self.output_size = output_size 
-        self.T = T
-        
-        # get source for timestep embeddings at all t AND zero (for the motif)
-        self.source_embeddings = get_timestep_embedding(torch.arange(self.T+1), self.input_size)
-        self.source_embeddings.requires_grad = False 
-        
-        # Layers to use for projection 
-        self.node_embedder = nn.Sequential(
-            nn.Linear(input_size, output_size, bias=False),
-            nn.ReLU(),
-            nn.Linear(output_size, output_size, bias=True),
-            nn.LayerNorm(output_size),
-        )
-        
-    
-    def get_init_emb(self, t, L, motif_mask):
-        """
-        Calculates and stacks a timestep embedding to project 
-        
-        Parameters:
-            
-            t (int, required): Current timestep
-            
-            L (int, required): Length of protein
-            
-            motif_mask (torch.tensor, required): Boolean mask where True denotes a fixed motif position
-        """
-        assert t > 0, 't should be 1-indexed and cant have t=0'
-
-        t_emb    = torch.clone(self.source_embeddings[t.squeeze()]).to(motif_mask.device)
-        zero_emb = torch.clone(self.source_embeddings[0]).to(motif_mask.device)
-        
-        # timestep embedding for all residues 
-        timestep_embedding = torch.stack([t_emb]*L)
-
-        # slice in motif zero timestep features
-        timestep_embedding[motif_mask] = zero_emb
-        
-        return timestep_embedding
-    
-    
-    def forward(self, L, t, motif_mask):
-        """
-        Constructs and projects a timestep embedding 
-        """
-        emb_in = self.get_init_emb(t,L,motif_mask)
-        emb_out = self.node_embedder(emb_in)
-        return emb_out
-
 class PositionalEncoding2D(nn.Module):
     # Add relative positional encoding to pair features
     def __init__(self, d_model, minpos=-32, maxpos=32, p_drop=0.1):
@@ -194,14 +118,6 @@ class Extra_emb(nn.Module):
         
         # Sergey's one hot trick
         seq = (seq @ self.emb_q.weight).unsqueeze(1) # (B, 1, L, d_model) -- query embedding
-        """
-        #TODO delete this once verified
-        if self.input_seq_onehot:
-            # Sergey's one hot trick
-            seq = (seq @ self.emb_q.weight).unsqueeze(1) # (B, 1, L, d_model) -- query embedding
-        else:
-            seq = self.emb_q(seq).unsqueeze(1) # (B, 1, L, d_model) -- query embedding
-        """
         msa = msa + seq.expand(-1, N, -1, -1) # adding query embedding to MSA
         return self.drop(msa)
 
@@ -278,14 +194,14 @@ class Templ_emb(nn.Module):
         self.templ_stack = TemplatePairStack(n_block=n_block, d_templ=d_templ, n_head=n_head,
                                              d_hidden=d_hidden, p_drop=p_drop)
         
-        self.attn = Attention(d_pair, d_templ, n_head, d_hidden, d_pair, p_drop=p_drop)
+        self.attn = Attention(d_pair, d_templ, n_head, d_hidden, d_pair)
         
         # process torsion angles
         self.emb_t1d = nn.Linear(d_t1d+d_tor, d_templ)
         self.proj_t1d = nn.Linear(d_templ, d_templ)
         #self.tor_stack = TemplateTorsionStack(n_block=n_block, d_templ=d_templ, n_head=n_head,
         #                                      d_hidden=d_hidden, p_drop=p_drop)
-        self.attn_tor = Attention(d_state, d_templ, n_head, d_hidden, d_state, p_drop=p_drop)
+        self.attn_tor = Attention(d_state, d_templ, n_head, d_hidden, d_state)
 
         self.reset_parameter()
     
