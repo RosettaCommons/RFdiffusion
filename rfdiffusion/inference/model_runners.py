@@ -742,7 +742,7 @@ class ScaffoldedSampler(SelfConditioning):
         """
         super().__init__(conf)
         # initialize BlockAdjacency sampling class
-        self.blockadjacency = iu.BlockAdjacency(conf.scaffoldguided, conf.inference.num_designs)
+        self.blockadjacency = iu.BlockAdjacency(conf, conf.inference.num_designs)
 
         #################################################
         ### Initialize target, if doing binder design ###

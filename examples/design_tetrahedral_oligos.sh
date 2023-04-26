@@ -7,14 +7,4 @@
 # We decay this potential with quadratic form, so that it is applied more strongly initially
 # We specify a total length of 1200aa, so each chain is 100 residues long
 
-python ../scripts/run_inference.py \
---config-name=symmetry \
-inference.symmetry="tetrahedral" \
-inference.num_designs=10 \
-inference.output_prefix="example_outputs/tetrahedral_oligo" \
-'potentials.guiding_potentials=["type:olig_contacts,weight_intra:1,weight_inter:0.1"]' \
-potentials.olig_intra_all=True \
-potentials.olig_inter_all=True \
-potentials.guide_scale=2.0 \
-potentials.guide_decay="quadratic" \
-'contigmap.contigs=[1200-1200]'
+python ../scripts/run_inference.py --config-name=symmetry inference.symmetry="tetrahedral" inference.num_designs=10 inference.output_prefix="example_outputs/tetrahedral_oligo" 'potentials.guiding_potentials=["type:olig_contacts,weight_intra:1,weight_inter:0.1"]' potentials.olig_intra_all=True potentials.olig_inter_all=True potentials.guide_scale=2.0 potentials.guide_decay="quadratic" 'contigmap.contigs=[1200-1200]'
