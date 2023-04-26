@@ -237,8 +237,7 @@ class IGSO3:
                 num_sigma=self.num_sigma,
                 min_sigma=self.min_sigma,
                 max_sigma=self.max_sigma,
-                num_omega=self.num_omega,
-                L=L,
+                num_omega=self.num_omega
             )
             write_pkl(cache_fname, igso3_vals)
 

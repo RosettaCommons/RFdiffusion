@@ -8,9 +8,10 @@ def generate_Cbeta(N, Ca, C):
     b = Ca - N
     c = C - Ca
     a = torch.cross(b, c, dim=-1)
-    # Cb = -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca
+    # These are the values used during training
+    Cb = -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca
     # fd: below matches sidechain generator (=Rosetta params)
-    Cb = -0.57910144 * a + 0.5689693 * b - 0.5441217 * c + Ca
+    # Cb = -0.57910144 * a + 0.5689693 * b - 0.5441217 * c + Ca
 
     return Cb
 

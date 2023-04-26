@@ -146,52 +146,6 @@ class binder_ncontacts(Potential):
         #Potential value is the average of both radii of gyration (is avg. the best way to do this?)
         return self.weight * binder_ncontacts.sum()
 
-    
-class dimer_ncontacts(Potential):
-
-    '''
-        Differentiable way to maximise number of contacts for two individual monomers in a dimer
-        
-        Motivation is given here: https://www.plumed.org/doc-v2.7/user-doc/html/_c_o_o_r_d_i_n_a_t_i_o_n.html
-
-        Author: PV
-    '''
-
-
-    def __init__(self, binderlen, weight=1, r_0=8, d_0=4):
-
-        self.binderlen = binderlen
-        self.r_0       = r_0
-        self.weight    = weight
-        self.d_0       = d_0
-
-    def compute(self, xyz):
-
-        # Only look at binder Ca residues
-        Ca = xyz[:self.binderlen,1] # [Lb,3]
-        #cdist needs a batch dimension - NRB
-        dgram = torch.cdist(Ca[None,...].contiguous(), Ca[None,...].contiguous(), p=2) # [1,Lb,Lb]
-        divide_by_r_0 = (dgram - self.d_0) / self.r_0
-        numerator = torch.pow(divide_by_r_0,6)
-        denominator = torch.pow(divide_by_r_0,12)
-        binder_ncontacts = (1 - numerator) / (1 - denominator)
-        #Potential is the sum of values in the tensor
-        binder_ncontacts = binder_ncontacts.sum()
-
-        # Only look at target Ca residues
-        Ca = xyz[self.binderlen:,1] # [Lb,3]
-        dgram = torch.cdist(Ca[None,...].contiguous(), Ca[None,...].contiguous(), p=2) # [1,Lb,Lb]
-        divide_by_r_0 = (dgram - self.d_0) / self.r_0
-        numerator = torch.pow(divide_by_r_0,6)
-        denominator = torch.pow(divide_by_r_0,12)
-        target_ncontacts = (1 - numerator) / (1 - denominator)
-        #Potential is the sum of values in the tensor
-        target_ncontacts = target_ncontacts.sum()
-        
-        print("DIMER NCONTACTS:", (binder_ncontacts+target_ncontacts)/2)
-        #Returns average of n contacts withiin monomer 1 and monomer 2
-        return self.weight * (binder_ncontacts+target_ncontacts)/2
-
 class interface_ncontacts(Potential):
 
     '''
@@ -266,42 +220,6 @@ class monomer_contacts(Potential):
         return self.weight * ncontacts.sum()
 
 
-def make_contact_matrix(nchain, contact_string=None):
-    """
-    Calculate a matrix of inter/intra chain contact indicators
-    
-    Parameters:
-        nchain (int, required): How many chains are in this design 
-        
-        contact_str (str, optional): String denoting how to define contacts, comma delimited between pairs of chains
-            '!' denotes repulsive, '&' denotes attractive
-    """
-    alphabet   = [a for a in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
-    letter2num = {a:i for i,a in enumerate(alphabet)}
-    
-    contacts   = np.zeros((nchain,nchain))
-    written    = np.zeros((nchain,nchain))
-    
-    contact_list = contact_string.split(',') 
-    for c in contact_list:
-        if not len(c) == 3:
-            raise SyntaxError('Invalid contact(s) specification')
-
-        i,j = letter2num[c[0]],letter2num[c[2]]
-        symbol = c[1]
-        
-        # denote contacting/repulsive
-        assert symbol in ['!','&']
-        if symbol == '!':
-            contacts[i,j] = -1
-            contacts[j,i] = -1
-        else:
-            contacts[i,j] = 1
-            contacts[j,i] = 1
-            
-    return contacts 
-
-
 class olig_contacts(Potential):
     """
     Applies PV's num contacts potential within/between chains in symmetric oligomers 
@@ -343,17 +261,6 @@ class olig_contacts(Potential):
         self.nchain=shape[0]
 
          
-    #   self._compute_chain_indices()
-
-    # def _compute_chain_indices(self):
-    #     # make list of shape [i,N] for indices of each chain in total length
-    #     indices = []
-    #     start   = 0
-    #     for l in self.chain_lengths:
-    #         indices.append(torch.arange(start,start+l))
-    #         start += l
-    #     self.indices = indices 
-
     def _get_idx(self,i,L):
         """
         Returns the zero-indexed indices of the residues in chain i
@@ -398,51 +305,6 @@ class olig_contacts(Potential):
 
         return all_contacts 
                     
-
-class olig_intra_contacts(Potential):
-    """
-    Applies PV's num contacts potential for each chain individually in an oligomer design 
-
-    Author: DJ 
-    """
-
-    def __init__(self, chain_lengths, weight=1):
-        """
-        Parameters:
-
-            chain_lengths (list, required): Ordered list of chain lengths 
-
-            weight (int/float, optional): Scaling/weighting factor
-        """
-        self.chain_lengths = chain_lengths 
-        self.weight = weight 
-
-
-    def compute(self, xyz):
-        """
-        Computes intra-chain num contacts potential
-        """
-        assert sum(self.chain_lengths) == xyz.shape[0], 'given chain lengths do not match total protein length'
-
-        all_contacts = 0
-        start = 0
-        for Lc in self.chain_lengths:
-            Ca = xyz[start:start+Lc]  # slice out crds for this chain 
-            dgram = torch.cdist(Ca[None,...].contiguous(), Ca[None,...].contiguous(), p=2) # [1,Lb,Lb]
-            divide_by_r_0 = (dgram - self.d_0) / self.r_0
-            numerator = torch.pow(divide_by_r_0,6)
-            denominator = torch.pow(divide_by_r_0,12)
-            ncontacts = (1 - numerator) / (1 - denominator)
-
-            # add contacts for this chain to all contacts 
-            all_contacts += ncontacts.sum()
-
-            # increment the start to be at the next chain 
-            start += Lc 
-
-
-        return self.weight * all_contacts
-
 def get_damped_lj(r_min, r_lin,p1=6,p2=12):
     
     y_at_r_lin = lj(r_lin, r_min, p1, p2)
@@ -592,131 +454,15 @@ class substrate_contacts(Potential):
             self.motif_frame = xyz[rand_idx[0],:4]
             self.motif_mapping = [(rand_idx, i) for i in range(4)]
 
-class binder_distance_ReLU(Potential):
-    '''
-        Given the current coordinates of the diffusion trajectory, calculate a potential that is the distance between each residue
-        and the closest target residue.
-
-        This potential is meant to encourage the binder to interact with a certain subset of residues on the target that 
-        define the binding site.
-
-        Author: NRB
-    '''
-
-    def __init__(self, binderlen, hotspot_res, weight=1, min_dist=15, use_Cb=False):
-
-        self.binderlen   = binderlen
-        self.hotspot_res = [res + binderlen for res in hotspot_res]
-        self.weight      = weight
-        self.min_dist    = min_dist
-        self.use_Cb      = use_Cb
-
-    def compute(self, xyz):
-        binder = xyz[:self.binderlen,:,:] # (Lb,27,3)
-        target = xyz[self.hotspot_res,:,:] # (N,27,3)
-
-        if self.use_Cb:
-            N  = binder[:,0]
-            Ca = binder[:,1]
-            C  = binder[:,2]
-
-            Cb = generate_Cbeta(N,Ca,C) # (Lb,3)
-
-            N_t  = target[:,0]
-            Ca_t = target[:,1]
-            C_t  = target[:,2]
-
-            Cb_t = generate_Cbeta(N_t,Ca_t,C_t) # (N,3)
-
-            dgram = torch.cdist(Cb[None,...], Cb_t[None,...], p=2) # (1,Lb,N)
-
-        else:
-            # Use Ca dist for potential
-
-            Ca = binder[:,1] # (Lb,3)
-
-            Ca_t = target[:,1] # (N,3)
-
-            dgram = torch.cdist(Ca[None,...], Ca_t[None,...], p=2) # (1,Lb,N)
-
-        closest_dist = torch.min(dgram.squeeze(0), dim=1)[0] # (Lb)
-
-        # Cap the distance at a minimum value
-        min_distance = self.min_dist * torch.ones_like(closest_dist) # (Lb)
-        potential    = torch.maximum(min_distance, closest_dist) # (Lb)
-
-        # torch.Tensor.backward() requires the potential to be a single value
-        potential    = torch.sum(potential, dim=-1)
-        
-        return -1 * self.weight * potential
-
-class binder_any_ReLU(Potential):
-    '''
-        Given the current coordinates of the diffusion trajectory, calculate a potential that is the minimum distance between
-        ANY residue and the closest target residue.
-
-        In contrast to binder_distance_ReLU this potential will only penalize a pose if all of the binder residues are outside
-        of a certain distance from the target residues.
-
-        Author: NRB
-    '''
-
-    def __init__(self, binderlen, hotspot_res, weight=1, min_dist=15, use_Cb=False):
-
-        self.binderlen   = binderlen
-        self.hotspot_res = [res + binderlen for res in hotspot_res]
-        self.weight      = weight
-        self.min_dist    = min_dist
-        self.use_Cb      = use_Cb
-
-    def compute(self, xyz):
-        binder = xyz[:self.binderlen,:,:] # (Lb,27,3)
-        target = xyz[self.hotspot_res,:,:] # (N,27,3)
-
-        if use_Cb:
-            N  = binder[:,0]
-            Ca = binder[:,1]
-            C  = binder[:,2]
-
-            Cb = generate_Cbeta(N,Ca,C) # (Lb,3)
-
-            N_t  = target[:,0]
-            Ca_t = target[:,1]
-            C_t  = target[:,2]
-
-            Cb_t = generate_Cbeta(N_t,Ca_t,C_t) # (N,3)
-
-            dgram = torch.cdist(Cb[None,...], Cb_t[None,...], p=2) # (1,Lb,N)
-
-        else:
-            # Use Ca dist for potential
-
-            Ca = binder[:,1] # (Lb,3)
-
-            Ca_t = target[:,1] # (N,3)
-
-            dgram = torch.cdist(Ca[None,...], Ca_t[None,...], p=2) # (1,Lb,N)
-
-
-        closest_dist = torch.min(dgram.squeeze(0)) # (1)
-
-        potential    = torch.maximum(min_dist, closest_dist) # (1)
-
-        return -1 * self.weight * potential
-
 # Dictionary of types of potentials indexed by name of potential. Used by PotentialManager.
 # If you implement a new potential you must add it to this dictionary for it to be used by
 # the PotentialManager
 implemented_potentials = { 'monomer_ROG':          monomer_ROG,
                            'binder_ROG':           binder_ROG,
-                           'binder_distance_ReLU': binder_distance_ReLU,
-                           'binder_any_ReLU':      binder_any_ReLU,
                            'dimer_ROG':            dimer_ROG,
                            'binder_ncontacts':     binder_ncontacts,
-                           'dimer_ncontacts':      dimer_ncontacts,
                            'interface_ncontacts':  interface_ncontacts,
                            'monomer_contacts':     monomer_contacts,
-                           'olig_intra_contacts':  olig_intra_contacts,
                            'olig_contacts':        olig_contacts,
                            'substrate_contacts':    substrate_contacts}
 
@@ -725,9 +471,5 @@ require_binderlen      = { 'binder_ROG',
                            'binder_any_ReLU',
                            'dimer_ROG',
                            'binder_ncontacts',
-                           'dimer_ncontacts',
                            'interface_ncontacts'}
-
-require_hotspot_res    = { 'binder_distance_ReLU',
-                           'binder_any_ReLU' }
 

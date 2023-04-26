@@ -1,10 +1,9 @@
 import torch
 import torch.nn as nn
-from rfdiffusion.Embeddings import MSA_emb, Extra_emb, Templ_emb, Recycling, Timestep_emb
+from rfdiffusion.Embeddings import MSA_emb, Extra_emb, Templ_emb, Recycling
 from rfdiffusion.Track_module import IterativeSimulator
 from rfdiffusion.AuxiliaryPredictor import DistanceNetwork, MaskedTokenNetwork, ExpResolvedNetwork, LDDTNetwork
 from opt_einsum import contract as einsum
-
 
 class RoseTTAFoldModule(nn.Module):
     def __init__(self, 
@@ -23,8 +22,6 @@ class RoseTTAFoldModule(nn.Module):
                  p_drop,
                  d_t1d,
                  d_t2d,
-                 d_time_emb, # total dims for input timestep emb
-                 d_time_emb_proj, # size of projected timestep emb
                  T, # total timesteps (used in timestep emb
                  use_motif_timestep, # Whether to have a distinct emb for motif
                  freeze_track_motif, # Whether to freeze updates to motif in track
@@ -47,15 +44,6 @@ class RoseTTAFoldModule(nn.Module):
                                    n_head=n_head_templ,
                                    d_hidden=d_hidden_templ, p_drop=0.25, d_t1d=d_t1d, d_t2d=d_t2d)
 
-        # timestep embedder 
-        if d_time_emb:
-            print('NOTE: Using sinusoidal timestep embeddings of dim ',d_time_emb, ' projected to dim ',d_time_emb_proj)
-            assert d_t1d >= 22 + d_time_emb_proj, 'timestep projection size doesn\'t fit into RF t1d projection layers'
-            self.timestep_embedder = Timestep_emb(input_size=d_time_emb, 
-                                                  output_size=d_time_emb_proj,
-                                                  T=T,
-                                                  use_motif_timestep=use_motif_timestep)
-
 
         # Update inputs with outputs from previous round
         self.recycle = Recycling(d_msa=d_msa, d_pair=d_pair, d_state=d_state)
@@ -72,7 +60,7 @@ class RoseTTAFoldModule(nn.Module):
                                             p_drop=p_drop)
         ##
         self.c6d_pred = DistanceNetwork(d_pair, p_drop=p_drop)
-        self.aa_pred = MaskedTokenNetwork(d_msa, p_drop=p_drop)
+        self.aa_pred = MaskedTokenNetwork(d_msa)
         self.lddt_pred = LDDTNetwork(d_state)
        
         self.exp_pred = ExpResolvedNetwork(d_msa, d_state)

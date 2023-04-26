@@ -64,8 +64,6 @@ model:
     l1_in_features: 3
     l1_out_features: 2
     num_edge_features: 64
-  d_time_emb: null
-  d_time_emb_proj: null
   freeze_track_motif: False
   use_motif_timestep: False
 
