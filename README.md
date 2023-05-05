@@ -103,6 +103,7 @@ Anytime you run diffusion you should be sure to activate this conda environment 
 ```
 conda activate SE3nv
 ```
+Total setup should take less than 30 minutes on a standard desktop computer.
 Note: Due to the variation in GPU types and drivers that users have access to, we are not able to make one environment that will run on all setups. As such, we are only providing a yml file with support for CUDA 11.1 and leaving it to each user to customize it to work on their setups. This customization will involve changing the cudatoolkit and (possibly) the PyTorch version specified in the yml file.
 
 ---
