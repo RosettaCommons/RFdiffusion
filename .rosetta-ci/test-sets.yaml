@@ -1,0 +1,62 @@
+# map platform-string → platform definiton
+platforms:
+  ubuntu-20.04.gcc:
+    os: ubuntu-20.04
+    compiler: gcc
+    python: '3.9'
+
+  ubuntu-20.04.clang:
+    os: ubuntu-20.04
+    compiler: clang
+    python: '3.9'
+
+
+# map of test-set-name → tests
+test-sets:
+  basic:
+    - ubuntu-20.04.gcc.self.state
+    - ubuntu-20.04.gcc.self.subtests
+    - ubuntu-20.04.gcc.self.release
+
+
+  python:
+    - ubuntu-20.04.gcc.self.python
+    - ubuntu-20.04.clang.self.python
+
+
+# map of GitHub-label → [test-set]
+github-label-test-sets:
+  00 basic: [basic]
+  01 python: [python]
+
+
+# map of submit-page-category → tests
+# tests that does not get assigned will be automatically displayed in 'other' category
+category-tests:
+  main:
+    - self.state
+    - self.subtests
+    - self.release
+
+
+  python:
+    - self.python
+    - self.python
+
+
+# map branch → test-set to
+# specify list of tests that should be applied by-default during testing of each new commits to specific branch
+branch-test-sets:
+  main: [basic]
+  benchmark: [basic, python]
+
+
+# map branch → test-sets for pull-request's
+# specify which test-sets should be scheduled for PR's by-default (ie in addition to GH labels applied)
+# use empty branch name to specify defult value for (ie any branch not explicitly listed)
+pull-request-branch-test-sets:
+  # specific test sets for benchmark branch
+  benchmark: ['python']
+
+  # default, will apply to PR's to any other branch
+  '': ['basic', 'python']
