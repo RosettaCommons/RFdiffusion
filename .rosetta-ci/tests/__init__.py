@@ -61,7 +61,7 @@ PyRosetta_unix_unit_test_memory_requirement_per_cpu = 3.0  # Memory per sub-proc
 # Commands to run all the scripts needed for setting up Rosetta compiles. (Run from main/source directory)
 PRE_COMPILE_SETUP_SCRIPTS = [ "./update_options.sh", "./update_submodules.sh", "./update_ResidueType_enum_files.sh", "python version.py" ]
 
-DEFAULT_PYTHON_VERSION='3.11'
+DEFAULT_PYTHON_VERSION='3.9'
 
 # Standard funtions and classes below ---------------------------------------------------------------------------------
 
