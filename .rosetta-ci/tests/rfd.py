@@ -18,7 +18,7 @@ imp.load_source(__name__, '/'.join(__file__.split('/')[:-1]) +  '/__init__.py') 
 
 _api_version_ = '1.0'
 
-import os, tempfile
+import os, tempfile, shutil
 import urllib.request
 
 
@@ -51,9 +51,9 @@ def run_main_test_suite(repository_root, working_dir, platform, config):
             urllib.request.urlretrieve(url, tmp_file_name)
             os.rename(tmp_file_name, file_name)
 
-    #with tempfile.TemporaryDirectory(dir=working_dir) as tmpdirname:
-    tmpdirname = working_dir+'/.ve'
-    if True:
+    with tempfile.TemporaryDirectory(dir=working_dir) as tmpdirname:
+    #tmpdirname = working_dir+'/.ve'
+    #if True:
 
         #ve = setup_persistent_python_virtual_environment(python_environment, packages='numpy torch omegaconf scipy opt_einsum dgl')
         #ve = setup_python_virtual_environment(working_dir+'/.ve', python_environment, packages='numpy torch omegaconf scipy opt_einsum dgl e3nn icecream pyrsistent wandb pynvml decorator jedi hydra-core')
@@ -62,13 +62,27 @@ def run_main_test_suite(repository_root, working_dir, platform, config):
         execute('Installing local se3-transformer package...', f'cd {repository_root}/env/SE3Transformer && {ve.bin}/pip3 install --editable .')
         execute('Installing RFdiffusion package...', f'cd {repository_root} && {ve.bin}/pip3 install --editable .')
 
-        res, output = execute('running unit tests...', f'{ve.activate} && cd {repository_root} && python -m unittest', return_='tuple', add_message_and_command_line_to_output=True)
+        #res, output = execute('running unit tests...', f'{ve.activate} && cd {repository_root} && python -m unittest', return_='tuple', add_message_and_command_line_to_output=True)
         #res, output = execute('running unit tests...', f'cd {repository_root} && {ve.bin}/pytest', return_='tuple')
+
+
+        results_file = f'{repository_root}/tests/.results.json'
+        if os.path.isfile(results_file): os.remove(results_file)
+
+        res, output = execute('running RFdiffusion tests...', f'{ve.activate} && cd {repository_root}/tests && python test_diffusion.py', return_='tuple', add_message_and_command_line_to_output=True)
+
+        if os.path.isfile(results_file):
+            with open(results_file) as f: sub_tests_reults = json.load(f)
+        else: sub_tests_reults = {}
+
+        shutil.move(f'{repository_root}/tests/outputs', f'{working_dir}/outputs')
 
         results = {
             _StateKey_ : _S_failed_ if res else _S_passed_,
             _LogKey_ : full_log + '\n' + output,
-            _ResultsKey_ : {},
+            _ResultsKey_ : {
+                _TestsKey_ : sub_tests_reults,
+            },
         }
 
     return results
