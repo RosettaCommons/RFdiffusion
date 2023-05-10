@@ -1,1 +1,3 @@
 *.pyc
+results/
+benchmark.ubuntu.ini
