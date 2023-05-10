@@ -113,9 +113,6 @@ class PotentialManager:
                 if setting['type'] in potentials.require_binderlen:
                     setting.update(binderlen_update)
 
-                if setting['type'] in potentials.require_hotspot_res:
-                    setting.update(hotspot_res_update)
-
         self.potentials_to_apply = self.initialize_all_potentials(setting_list)
         self.T = diffuser_config.T
         
@@ -199,7 +196,7 @@ class PotentialManager:
                 # Linear interpolation with y2: 0, y1: guide_scale, x2: 0, x1: T, x: t
                 'linear'  : lambda t: t/self.T * self.guide_scale,
                 'quadratic' : lambda t: t**2/self.T**2 * self.guide_scale,
-                'cubic' : lambda t: t**3/self.T**3
+                'cubic' : lambda t: t**3/self.T**3 * self.guide_scale
         }
         
         if self.guide_decay not in implemented_decay_types:

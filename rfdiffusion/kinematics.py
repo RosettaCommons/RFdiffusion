@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from rfdiffusion.chemical import INIT_CRDS
+from rfdiffusion.util import generate_Cbeta
 
 PARAMS = {
     "DMIN"    : 2.0,
@@ -55,13 +56,18 @@ def get_dih(a, b, c, d):
 
     Parameters
     ----------
-    a,b,c,d : pytorch tensors of shape [batch,nres,3]
+    a,b,c,d : pytorch tensors or numpy array of shape [batch,nres,3]
               store Cartesian coordinates of four sets of atoms
     Returns
     -------
-    dih : pytorch tensor of shape [batch,nres]
+    dih : pytorch tensor or numpy array of shape [batch,nres]
           stores resulting dihedrals
     """
+    convert_to_torch = lambda *arrays: [torch.from_numpy(arr) for arr in arrays]
+    output_np=False
+    if isinstance(a, np.ndarray):
+        output_np=True
+        a,b,c,d = convert_to_torch(a,b,c,d)
     b0 = a - b
     b1 = c - b
     b2 = d - c
@@ -73,18 +79,10 @@ def get_dih(a, b, c, d):
 
     x = torch.sum(v*w, dim=-1)
     y = torch.sum(torch.cross(b1,v,dim=-1)*w, dim=-1)
-
-    return torch.atan2(y, x)
-
-def get_Cb(xyz):
-    '''recreate Cb given N,Ca,C'''
-    N  = xyz[...,0,:]
-    Ca = xyz[...,1,:]
-    C  = xyz[...,2,:]
-    b = Ca - N
-    c = C - Ca
-    a = torch.cross(b, c, dim=-1)
-    return -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca
+    output = torch.atan2(y, x)
+    if output_np:
+        return output.numpy()
+    return output
 
 # ============================================================
 def xyz_to_c6d(xyz, params=PARAMS):
@@ -108,7 +106,7 @@ def xyz_to_c6d(xyz, params=PARAMS):
     N  = xyz[:,:,0]
     Ca = xyz[:,:,1]
     C  = xyz[:,:,2]
-    Cb = get_Cb(xyz)
+    Cb = generate_Cbeta(N, Ca, C)
 
     # 6d coordinates order: (dist,omega,theta,phi)
     c6d = torch.zeros([batch,nres,nres,4],dtype=xyz.dtype,device=xyz.device)

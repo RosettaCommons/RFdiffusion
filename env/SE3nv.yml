@@ -12,7 +12,6 @@ dependencies:
   - torchvision
   - cudatoolkit=11.1
   - dgl-cuda11.1
-  - icecream
   - pip
   - pip:
     - hydra-core

@@ -31,7 +31,7 @@ class FeedForwardLayer(nn.Module):
 
 class Attention(nn.Module):
     # calculate multi-head attention
-    def __init__(self, d_query, d_key, n_head, d_hidden, d_out, p_drop=0.1):
+    def __init__(self, d_query, d_key, n_head, d_hidden, d_out):
         super(Attention, self).__init__()
         self.h = n_head
         self.dim = d_hidden

@@ -34,7 +34,7 @@ class DistanceNetwork(nn.Module):
         return logits_dist, logits_omega, logits_theta, logits_phi
 
 class MaskedTokenNetwork(nn.Module):
-    def __init__(self, n_feat, p_drop=0.1):
+    def __init__(self, n_feat):
         super(MaskedTokenNetwork, self).__init__()
         self.proj = nn.Linear(n_feat, 21)
         

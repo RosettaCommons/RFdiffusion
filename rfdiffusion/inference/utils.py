@@ -223,8 +223,6 @@ class Denoise:
         T,
         L,
         diffuser,
-        visible,
-        seq_diffuser=None,
         b_0=0.001,
         b_T=0.1,
         min_b=1.0,
@@ -256,7 +254,6 @@ class Denoise:
         self.T = T
         self.L = L
         self.diffuser = diffuser
-        self.seq_diffuser = seq_diffuser
         self.b_0 = b_0
         self.b_T = b_T
         self.noise_level = noise_level
@@ -301,8 +298,6 @@ class Denoise:
         Third, centre at origin
         """
 
-        # if True:
-        #    return px0
         def rmsd(V, W, eps=0):
             # First sum down atoms, then sum down xyz
             N = V.shape[-2]
@@ -358,17 +353,12 @@ class Denoise:
         px0[~atom_mask] = 0  # convert nans to 0
         px0 = px0.reshape(-1, 3) - px0_motif_mean
         px0_ = px0 @ R
-        # xT_motif_out = xT_motif.reshape(-1,3)
-        # xT_motif_out = (xT_motif_out @ R ) + px0_motif_mean
-        # ic(xT_motif_out.shape)
-        # xT_motif_out = xT_motif_out.reshape((diffusion_mask.sum(),3,3))
 
         # 3 put in same global position as xT
         px0_ = px0_ + xT_motif_mean
         px0_ = px0_.reshape([L, n_atom, 3])
         px0_[~atom_mask] = float("nan")
         return torch.Tensor(px0_)
-        # return torch.tensor(xT_motif_out)
 
     def get_potential_gradients(self, xyz, diffusion_mask):
         """
@@ -528,7 +518,8 @@ def sampler_selector(conf: DictConfig):
 
 def parse_pdb(filename, **kwargs):
     """extract xyz coords for all heavy atoms"""
-    lines = open(filename, "r").readlines()
+    with open(filename,"r") as f:
+        lines=f.readlines()
     return parse_pdb_lines(lines, **kwargs)
 
 
@@ -697,15 +688,16 @@ class BlockAdjacency:
              conf.scaffold_list as conf
              conf.inference.num_designs for sanity checking
         """
-
+       
+        self.conf=conf 
         # either list or path to .txt file with list of scaffolds
-        if conf.scaffold_list is not None:
-            if type(conf.scaffold_list) == list:
+        if self.conf.scaffoldguided.scaffold_list is not None:
+            if type(self.conf.scaffoldguided.scaffold_list) == list:
                 self.scaffold_list = scaffold_list
-            elif conf.scaffold_list[-4:] == ".txt":
+            elif self.conf.scaffoldguided.scaffold_list[-4:] == ".txt":
                 # txt file with list of ids
                 list_from_file = []
-                with open(conf.scaffold_list, "r") as f:
+                with open(self.conf.scaffoldguided.scaffold_list, "r") as f:
                     for line in f:
                         list_from_file.append(line.strip())
                 self.scaffold_list = list_from_file
@@ -714,43 +706,45 @@ class BlockAdjacency:
         else:
             self.scaffold_list = [
                 os.path.split(i)[1][:-6]
-                for i in glob.glob(f"{conf.scaffold_dir}/*_ss.pt")
+                for i in glob.glob(f"{self.conf.scaffoldguided.scaffold_dir}/*_ss.pt")
             ]
+            self.scaffold_list.sort()
+
         # path to directory with scaffolds, ss files and block_adjacency files
-        self.scaffold_dir = conf.scaffold_dir
+        self.scaffold_dir = self.conf.scaffoldguided.scaffold_dir
 
         # maximum sampled insertion in each loop segment
-        if "-" in str(conf.sampled_insertion):
+        if "-" in str(self.conf.scaffoldguided.sampled_insertion):
             self.sampled_insertion = [
-                int(str(conf.sampled_insertion).split("-")[0]),
-                int(str(conf.sampled_insertion).split("-")[1]),
+                int(str(self.conf.scaffoldguided.sampled_insertion).split("-")[0]),
+                int(str(self.conf.scaffoldguided.sampled_insertion).split("-")[1]),
             ]
         else:
-            self.sampled_insertion = [0, int(conf.sampled_insertion)]
+            self.sampled_insertion = [0, int(self.conf.scaffoldguided.sampled_insertion)]
 
         # maximum sampled insertion at N- and C-terminus
-        if "-" in str(conf.sampled_N):
+        if "-" in str(self.conf.scaffoldguided.sampled_N):
             self.sampled_N = [
-                int(str(conf.sampled_N).split("-")[0]),
-                int(str(conf.sampled_N).split("-")[1]),
+                int(str(self.conf.scaffoldguided.sampled_N).split("-")[0]),
+                int(str(self.conf.scaffoldguided.sampled_N).split("-")[1]),
             ]
         else:
-            self.sampled_N = [0, int(conf.sampled_N)]
-        if "-" in str(conf.sampled_C):
+            self.sampled_N = [0, int(self.conf.scaffoldguided.sampled_N)]
+        if "-" in str(self.conf.scaffoldguided.sampled_C):
             self.sampled_C = [
-                int(str(conf.sampled_C).split("-")[0]),
-                int(str(conf.sampled_C).split("-")[1]),
+                int(str(self.conf.scaffoldguided.sampled_C).split("-")[0]),
+                int(str(self.conf.scaffoldguided.sampled_C).split("-")[1]),
             ]
         else:
-            self.sampled_C = [0, int(conf.sampled_C)]
+            self.sampled_C = [0, int(self.conf.scaffoldguided.sampled_C)]
 
         # number of residues to mask ss identity of in H/E regions (from junction)
         # e.g. if ss_mask = 2, L,L,L,H,H,H,H,H,H,H,L,L,E,E,E,E,E,E,L,L,L,L,L,L would become\
         # M,M,M,M,M,H,H,H,M,M,M,M,M,M,E,E,M,M,M,M,M,M,M,M where M is mask
-        self.ss_mask = conf.ss_mask
+        self.ss_mask = self.conf.scaffoldguided.ss_mask
 
         # whether or not to work systematically through the list
-        self.systematic = conf.systematic
+        self.systematic = self.conf.scaffoldguided.systematic
 
         self.num_designs = num_designs
 
@@ -765,10 +759,10 @@ class BlockAdjacency:
             self.item_n = 0
 
         # whether to mask loops or not
-        if not conf.mask_loops:
-            assert conf.sampled_N == 0, "can't add length if not masking loops"
-            assert conf.sampled_C == 0, "can't add lemgth if not masking loops"
-            assert conf.sampled_insertion == 0, "can't add length if not masking loops"
+        if not self.conf.scaffoldguided.mask_loops:
+            assert self.conf.scaffoldguided.sampled_N == 0, "can't add length if not masking loops"
+            assert self.conf.scaffoldguided.sampled_C == 0, "can't add lemgth if not masking loops"
+            assert self.conf.scaffoldguided.sampled_insertion == 0, "can't add length if not masking loops"
             self.mask_loops = False
         else:
             self.mask_loops = True
@@ -880,6 +874,13 @@ class BlockAdjacency:
         """
         Wrapper method for pulling an item from the list, and preparing ss and block adj features
         """
+        
+        # Handle determinism. Useful for integration tests
+        if self.conf.inference.deterministic:
+            torch.manual_seed(self.num_completed)
+            np.random.seed(self.num_completed)
+            random.seed(self.num_completed)
+  
         if self.systematic:
             # reset if num designs > num_scaffolds
             if self.item_n >= len(self.scaffold_list):

@@ -8,9 +8,10 @@ def generate_Cbeta(N, Ca, C):
     b = Ca - N
     c = C - Ca
     a = torch.cross(b, c, dim=-1)
-    # Cb = -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca
+    # These are the values used during training
+    Cb = -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca
     # fd: below matches sidechain generator (=Rosetta params)
-    Cb = -0.57910144 * a + 0.5689693 * b - 0.5441217 * c + Ca
+    # Cb = -0.57910144 * a + 0.5689693 * b - 0.5441217 * c + Ca
 
     return Cb
 
@@ -712,3 +713,31 @@ def writepdb_multi(
                 ctr += 1
 
         f.write("ENDMDL\n")
+
+def calc_rmsd(xyz1, xyz2, eps=1e-6):
+    """
+    Calculates RMSD between two sets of atoms (L, 3)
+    """
+    # center to CA centroid
+    xyz1 = xyz1 - xyz1.mean(0)
+    xyz2 = xyz2 - xyz2.mean(0)
+
+    # Computation of the covariance matrix
+    C = xyz2.T @ xyz1
+
+    # Compute otimal rotation matrix using SVD
+    V, S, W = np.linalg.svd(C)
+
+    # get sign to ensure right-handedness
+    d = np.ones([3,3])
+    d[:,-1] = np.sign(np.linalg.det(V)*np.linalg.det(W))
+
+    # Rotation matrix U
+    U = (d*V) @ W
+
+    # Rotate xyz2
+    xyz2_ = xyz2 @ U
+    L = xyz2_.shape[0]
+    rmsd = np.sqrt(np.sum((xyz2_-xyz1)*(xyz2_-xyz1), axis=(0,1)) / L + eps)
+
+    return rmsd, U
