@@ -13,6 +13,9 @@ platforms:
 
 # map of test-set-name → tests
 test-sets:
+  main:
+    - ubuntu-20.04.clang.rfd
+
   basic:
     - ubuntu-20.04.gcc.self.state
     - ubuntu-20.04.gcc.self.subtests
@@ -34,12 +37,15 @@ github-label-test-sets:
 # tests that does not get assigned will be automatically displayed in 'other' category
 category-tests:
   main:
+    - rfd
+
+  self:
     - self.state
     - self.subtests
     - self.release
 
 
-  python:
+  self-python:
     - self.python
     - self.python
 
@@ -59,4 +65,4 @@ pull-request-branch-test-sets:
   benchmark: ['python']
 
   # default, will apply to PR's to any other branch
-  '': ['basic', 'python']
+  '': ['main', 'python']

@@ -34,7 +34,8 @@ http://files.ipd.uw.edu/pub/RFdiffusion/f572d396fae9206628714fb2ce00f72e/Complex
 http://files.ipd.uw.edu/pub/RFdiffusion/1befcb9b28e2f778f53d47f18b7597fa/RF_structure_prediction_weights.pt
 '''.split()
 
-def run_main_test_suite(repository_root, working_dir, platform, config):
+
+def run_main_test_suite(repository_root, working_dir, platform, config, debug):
     full_log = ''
 
     python_environment = local_python_install(platform, config)
@@ -52,8 +53,8 @@ def run_main_test_suite(repository_root, working_dir, platform, config):
             os.rename(tmp_file_name, file_name)
 
     with tempfile.TemporaryDirectory(dir=working_dir) as tmpdirname:
-    #tmpdirname = working_dir+'/.ve'
-    #if True:
+    # tmpdirname = working_dir+'/.ve'
+    # if True:
 
         #ve = setup_persistent_python_virtual_environment(python_environment, packages='numpy torch omegaconf scipy opt_einsum dgl')
         #ve = setup_python_virtual_environment(working_dir+'/.ve', python_environment, packages='numpy torch omegaconf scipy opt_einsum dgl e3nn icecream pyrsistent wandb pynvml decorator jedi hydra-core')
@@ -77,6 +78,10 @@ def run_main_test_suite(repository_root, working_dir, platform, config):
 
         shutil.move(f'{repository_root}/tests/outputs', f'{working_dir}/outputs')
 
+        for d in os.listdir(f'{repository_root}/tests'):
+            p = f'{repository_root}/tests/{d}'
+            if d.startswith('tests_') and os.path.isdir(p): shutil.rmtree(p)
+
         results = {
             _StateKey_ : _S_failed_ if res else _S_passed_,
             _LogKey_ : full_log + '\n' + output,
@@ -90,5 +95,5 @@ def run_main_test_suite(repository_root, working_dir, platform, config):
 
 
 def run(test, repository_root, working_dir, platform, config, hpc_driver=None, verbose=False, debug=False):
-    if test == '': return run_main_test_suite(repository_root, working_dir, platform, config)
+    if test == '': return run_main_test_suite(repository_root=repository_root, working_dir=working_dir, platform=platform, config=config, debug=debug)
     else: raise BenchmarkError('Unknow scripts test: {}!'.format(test))
