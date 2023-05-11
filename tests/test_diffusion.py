@@ -6,8 +6,8 @@ import os
 import torch
 from shutil import copyfile
 from rfdiffusion.inference import utils as iu
-from rfdiffusion.util import calc_rmsd
-import sys
+#from rfdiffusion.util import calc_rmsd
+import sys, json
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -46,9 +46,23 @@ class TestSubmissionCommands(unittest.TestCase):
             self._write_command(submission, self.out_f)
 
         print(f"Running commands in {self.out_f}, two steps of diffusion, deterministic=True")
-        for bash_file in glob.glob(f"{self.out_f}/*.sh"):
-            print(f"Running {os.path.basename(bash_file)}")
-            subprocess.run(["bash", bash_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        results = {}
+
+        for bash_file in sorted( glob.glob(f"{self.out_f}/*.sh"), reverse=False ):
+            test_name = os.path.basename(bash_file)[:-len('.sh')]
+            res, output = execute(f"Running {test_name}", f'bash {bash_file}', return_='tuple', add_message_and_command_line_to_output=True)
+
+            results[test_name] = dict(
+                state = 'failed' if res else 'passed',
+                log = output,
+            )
+
+            #subprocess.run(["bash", bash_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            #subprocess.run(["bash", bash_file])
+
+        with open('.results.json', 'w') as f: json.dump(results, f, sort_keys=True, indent=2)
+
 
     def test_commands(self):
         """
@@ -57,6 +71,7 @@ class TestSubmissionCommands(unittest.TestCase):
         reference=f'{script_dir}/reference_outputs'
         os.makedirs(reference, exist_ok=True)
         test_files=glob.glob(f"{self.out_f}/example_outputs/*pdb")
+        print(f'{self.out_f=} {test_files=}')
         # first check that we have the right number of outputs
         self.assertEqual(len(test_files), len(glob.glob(f"{self.out_f}/*.sh"))), "One or more of the example commands didn't produce an output (check the example command is formatted correctly)"
         result = self.defaultTestResult()
@@ -121,6 +136,118 @@ class TestSubmissionCommands(unittest.TestCase):
             for line in out_lines:
                 f.write(line)
             f.write(output_command)
+
+
+
+def execute_through_pty(command_line):
+    import pty, select
+
+    if sys.platform == "darwin":
+
+        master, slave = pty.openpty()
+        p = subprocess.Popen(command_line, shell=True, stdout=slave, stdin=slave,
+                             stderr=subprocess.STDOUT, close_fds=True)
+
+        buffer = []
+        while True:
+            try:
+                if select.select([master], [], [], 0.2)[0]:  # has something to read
+                    data = os.read(master, 1 << 22)
+                    if data: buffer.append(data)
+
+                elif (p.poll() is not None)  and  (not select.select([master], [], [], 0.2)[0] ): break  # process is finished and output buffer if fully read
+
+            except OSError: break  # OSError will be raised when child process close PTY descriptior
+
+        output = b''.join(buffer).decode(encoding='utf-8', errors='backslashreplace')
+
+        os.close(master)
+        os.close(slave)
+
+        p.wait()
+        exit_code = p.returncode
+
+        '''
+        buffer = []
+        while True:
+            if select.select([master], [], [], 0.2)[0]:  # has something to read
+                data = os.read(master, 1 << 22)
+                if data: buffer.append(data)
+                # else: break  # # EOF - well, technically process _should_ be finished here...
+
+            # elif time.sleep(1) or (p.poll() is not None): # process is finished (sleep here is intentional to trigger race condition, see solution for this on the next few lines)
+            #     assert not select.select([master], [], [], 0.2)[0]  # should be nothing left to read...
+            #     break
+
+            elif (p.poll() is not None)  and  (not select.select([master], [], [], 0.2)[0] ): break  # process is finished and output buffer if fully read
+
+        assert not select.select([master], [], [], 0.2)[0]  # should be nothing left to read...
+
+        os.close(slave)
+        os.close(master)
+
+        output = b''.join(buffer).decode(encoding='utf-8', errors='backslashreplace')
+        exit_code = p.returncode
+        '''
+
+    else:
+
+        master, slave = pty.openpty()
+        p = subprocess.Popen(command_line, shell=True, stdout=slave, stdin=slave,
+                             stderr=subprocess.STDOUT, close_fds=True)
+
+        os.close(slave)
+
+        buffer = []
+        while True:
+            try:
+                data = os.read(master, 1 << 22)
+                if data: buffer.append(data)
+            except OSError: break  # OSError will be raised when child process close PTY descriptior
+
+        output = b''.join(buffer).decode(encoding='utf-8', errors='backslashreplace')
+
+        os.close(master)
+
+        p.wait()
+        exit_code = p.returncode
+
+    return exit_code, output
+
+
+
+def execute(message, command_line, return_='status', until_successes=False, terminate_on_failure=True, silent=False, silence_output=False, silence_output_on_errors=False, add_message_and_command_line_to_output=False):
+    if not silent: print(message);  print(command_line); sys.stdout.flush();
+    while True:
+
+        #exit_code, output = execute_through_subprocess(command_line)
+        #exit_code, output = execute_through_pexpect(command_line)
+        exit_code, output = execute_through_pty(command_line)
+
+        if (exit_code  and  not silence_output_on_errors) or  not (silent or silence_output): print(output); sys.stdout.flush();
+
+        if exit_code and until_successes: pass  # Thats right - redability COUNT!
+        else: break
+
+        print( "Error while executing {}: {}\n".format(message, output) )
+        print("Sleeping 60s... then I will retry...")
+        sys.stdout.flush();
+        time.sleep(60)
+
+    if add_message_and_command_line_to_output: output = message + '\nCommand line: ' + command_line + '\n' + output
+
+    if return_ == 'tuple'  or  return_ == tuple: return(exit_code, output)
+
+    if exit_code and terminate_on_failure:
+        print("\nEncounter error while executing: " + command_line)
+        if return_==True: return True
+        else:
+            print('\nEncounter error while executing: ' + command_line + '\n' + output);
+            raise BenchmarkError('\nEncounter error while executing: ' + command_line + '\n' + output)
+
+    if return_ == 'output': return output
+    else: return exit_code
+
 
 if __name__ == "__main__":
     unittest.main()
