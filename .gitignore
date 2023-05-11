@@ -1,2 +1,10 @@
 *.py[cod]
 rfdiffusion.egg-info
+
+models/
+schedules/
+
+tests/.results.json
+tests/input_pdbs
+tests/target_folds
+tests/tim_barrel_scaffold
