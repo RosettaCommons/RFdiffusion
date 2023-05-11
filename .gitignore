@@ -6,5 +6,8 @@ schedules/
 
 tests/.results.json
 tests/input_pdbs
+tests/outputs
+tests/reference_outputs/
 tests/target_folds
 tests/tim_barrel_scaffold
+tests/tests_*
