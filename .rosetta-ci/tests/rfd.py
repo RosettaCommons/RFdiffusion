@@ -74,7 +74,17 @@ def run_main_test_suite(repository_root, working_dir, platform, config, debug):
 
         if os.path.isfile(results_file):
             with open(results_file) as f: sub_tests_reults = json.load(f)
-        else: sub_tests_reults = {}
+
+            state = _S_passed_
+            for r in sub_tests_reults.values():
+                if r[_StateKey_] == _S_failed_:
+                    state = _S_failed_
+                    break
+
+        else:
+            sub_tests_reults = {}
+            output  += '\n\nEmpty sub-test results, marking test as `failed`...'
+            state = _S_failed_
 
         shutil.move(f'{repository_root}/tests/outputs', f'{working_dir}/outputs')
 
@@ -83,7 +93,7 @@ def run_main_test_suite(repository_root, working_dir, platform, config, debug):
             if d.startswith('tests_') and os.path.isdir(p): shutil.rmtree(p)
 
         results = {
-            _StateKey_ : _S_failed_ if res else _S_passed_,
+            _StateKey_ : state,
             _LogKey_ : full_log + '\n' + output,
             _ResultsKey_ : {
                 _TestsKey_ : sub_tests_reults,
