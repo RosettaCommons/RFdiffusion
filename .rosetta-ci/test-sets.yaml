@@ -16,21 +16,22 @@ test-sets:
   main:
     - ubuntu-20.04.clang.rfd
 
-  basic:
+  python:
+    - ubuntu-20.04.gcc.self.python
+    - ubuntu-20.04.clang.self.python
+
+  self:
     - ubuntu-20.04.gcc.self.state
     - ubuntu-20.04.gcc.self.subtests
     - ubuntu-20.04.gcc.self.release
 
 
-  python:
-    - ubuntu-20.04.gcc.self.python
-    - ubuntu-20.04.clang.self.python
-
 
 # map of GitHub-label → [test-set]
 github-label-test-sets:
-  00 basic: [basic]
-  01 python: [python]
+  00 main: [main]
+  10 self: [self]
+  16 python: [python]
 
 
 # map of submit-page-category → tests
@@ -43,18 +44,14 @@ category-tests:
     - self.state
     - self.subtests
     - self.release
-
-
-  self-python:
-    - self.python
     - self.python
 
 
 # map branch → test-set to
 # specify list of tests that should be applied by-default during testing of each new commits to specific branch
 branch-test-sets:
-  main: [basic]
-  benchmark: [basic, python]
+  main: [main]
+  benchmark: [main, python]
 
 
 # map branch → test-sets for pull-request's
