@@ -6,7 +6,7 @@ import os
 import torch
 from shutil import copyfile
 from rfdiffusion.inference import utils as iu
-#from rfdiffusion.util import calc_rmsd
+from rfdiffusion.util import calc_rmsd
 import sys, json
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -47,21 +47,19 @@ class TestSubmissionCommands(unittest.TestCase):
 
         print(f"Running commands in {self.out_f}, two steps of diffusion, deterministic=True")
 
-        results = {}
+        self.results = {}
 
         for bash_file in sorted( glob.glob(f"{self.out_f}/*.sh"), reverse=False):
             test_name = os.path.basename(bash_file)[:-len('.sh')]
             res, output = execute(f"Running {test_name}", f'bash {bash_file}', return_='tuple', add_message_and_command_line_to_output=True)
 
-            results[test_name] = dict(
+            self.results[test_name] = dict(
                 state = 'failed' if res else 'passed',
                 log = output,
             )
 
             #subprocess.run(["bash", bash_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             #subprocess.run(["bash", bash_file])
-
-        with open('.results.json', 'w') as f: json.dump(results, f, sort_keys=True, indent=2)
 
 
     def test_commands(self):
@@ -90,9 +88,21 @@ class TestSubmissionCommands(unittest.TestCase):
                         self.assertAlmostEqual(rmsd, 0, 2)
                         result.addSuccess(self)
                         print(f"Subtest {test_file} passed")
+
+                        state = 'passed'
+                        log = f'Subtest {test_file} passed'
+
                     except AssertionError as e:
                         result.addFailure(self, e)
                         print(f"Subtest {test_file} failed")
+
+                        state = 'failed'
+                        log = f'Subtest {test_file} failed:\n{e!r}'
+
+                    self.results[test_name] = dict(state = state, log = log)
+
+        with open('.results.json', 'w') as f: json.dump(self.results, f, sort_keys=True, indent=2)
+
         self.assertTrue(result.wasSuccessful(), "One or more subtests failed")
 
 
