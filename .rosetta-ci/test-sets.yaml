@@ -59,7 +59,7 @@ branch-test-sets:
 # use empty branch name to specify defult value for (ie any branch not explicitly listed)
 pull-request-branch-test-sets:
   # specific test sets for benchmark branch
-  benchmark: ['python']
+  benchmark: ['main', 'python']
 
   # default, will apply to PR's to any other branch
-  '': ['main', 'python']
+  '': ['main']
