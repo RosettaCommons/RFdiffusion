@@ -99,7 +99,7 @@ class TestSubmissionCommands(unittest.TestCase):
                         state = 'failed'
                         log = f'Subtest {test_file} failed:\n{e!r}'
 
-                    self.results[test_file.rpartition('/')[-1]] = dict(state = state, log = log)
+                    self.results[ 'pdb-diff:' + test_file.rpartition('/')[-1] ] = dict(state = state, log = log)
 
         with open('.results.json', 'w') as f: json.dump(self.results, f, sort_keys=True, indent=2)
 
