@@ -136,9 +136,9 @@ class Sampler:
         if self.inf_conf.symmetry is not None:
             self.symmetry = symmetry.SymGen(
                 self.inf_conf.symmetry,
-                self.inf_conf.model_only_neighbors,
                 self.inf_conf.recenter,
-                self.inf_conf.radius, 
+                self.inf_conf.radius,
+                self.inf_conf.model_only_neighbors,
             )
         else:
             self.symmetry = None
