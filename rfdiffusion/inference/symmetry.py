@@ -33,7 +33,7 @@ saved_symmetries = ['tetrahedral', 'octahedral', 'icosahedral']
 
 class SymGen:
 
-    def __init__(self, global_sym, recenter, radius, model_only_neibhbors=False):
+    def __init__(self, global_sym, recenter, radius, model_only_neighbors=False):
         self._log = logging.getLogger(__name__)
         self._recenter = recenter
         self._radius = radius
