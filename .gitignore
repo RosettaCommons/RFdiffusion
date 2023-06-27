@@ -4,9 +4,12 @@ rfdiffusion.egg-info
 models/
 schedules/
 
+examples/ppi_scaffolds
+
 tests/.results.json
 tests/input_pdbs
 tests/outputs
+tests/ppi_scaffolds
 tests/reference_outputs/
 tests/target_folds
 tests/tim_barrel_scaffold
