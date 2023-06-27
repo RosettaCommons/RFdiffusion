@@ -52,6 +52,8 @@ def run_main_test_suite(repository_root, working_dir, platform, config, debug):
             urllib.request.urlretrieve(url, tmp_file_name)
             os.rename(tmp_file_name, file_name)
 
+    execute('unpacking ppi scaffolds...', f'cd {repository_root} && tar -xvf examples/ppi_scaffolds_subset.tar.gz -C examples')
+
     with tempfile.TemporaryDirectory(dir=working_dir) as tmpdirname:
     # tmpdirname = working_dir+'/.ve'
     # if True:
