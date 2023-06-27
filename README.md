@@ -64,8 +64,9 @@ To get started using RFdiffusion, clone the repo:
 git clone https://github.com/RosettaCommons/RFdiffusion.git
 ```
 
-You'll then need to download the model weights:
+You'll then need to download the model weights into the RFDiffusion directory.
 ```
+cd RFdiffusion
 mkdir models && cd models
 wget http://files.ipd.uw.edu/pub/RFdiffusion/6f5902ac237024bdd0c176cb93063dc4/Base_ckpt.pt
 wget http://files.ipd.uw.edu/pub/RFdiffusion/e29311f6f1bf1af907f9ef9f44b8328b/Complex_base_ckpt.pt
