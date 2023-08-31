@@ -19,32 +19,36 @@
 
 FROM nvcr.io/nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04
 
+# Install base utilities
+RUN apt-get update \
+    && apt-get install -y build-essential \
+    && apt-get install -y wget git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install miniconda
+ENV CONDA_DIR /opt/conda
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda
+
+# install mamba
+RUN wget --quiet https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-$(uname)-$(uname -m).sh -O ~/mamba.sh  && \
+    /bin/bash  ~/mamba.sh -b
+# Put conda in path so we can use conda activate
+ENV PATH $CONDA_DIR/bin:$PATH
+
+COPY env/SE3nv.yml /tmp/SE3nv.yml 
+
+RUN  /root/mambaforge/bin/mamba  env create -f /tmp/SE3nv.yml 
+
+ENV PATH /root/mambaforge/envs/SE3nv/bin:$PATH
+
+
 COPY . /app/RFdiffusion/
 
-RUN apt-get -q update \ 
-  && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-  git \
-  python3.9 \
-  python3-pip \
-  && python3.9 -m pip install -q -U --no-cache-dir pip \
-  && rm -rf /var/lib/apt/lists/* \
-  && apt-get autoremove -y \
-  && apt-get clean \
-  && pip install -q --no-cache-dir \
-  dgl==1.0.2+cu116 -f https://data.dgl.ai/wheels/cu116/repo.html \
-  torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 \
-  e3nn==0.3.3 \
-  wandb==0.12.0 \
-  pynvml==11.0.0 \
-  git+https://github.com/NVIDIA/dllogger#egg=dllogger \
-  decorator==5.1.0 \
-  hydra-core==1.3.2 \
-  pyrsistent==0.19.3 \
-  /app/RFdiffusion/env/SE3Transformer \
-  && pip install --no-cache-dir /app/RFdiffusion --no-deps
-  
-WORKDIR /app/RFdiffusion
+WORKDIR /app/RFdiffusion/env/SE3Transformer
+RUN pip install --no-cache-dir -r requirements.txt
+RUN python setup.py install 
+RUN pip install /app/RFdiffusion
 
-ENV DGLBACKEND="pytorch"
-
-ENTRYPOINT ["python3.9", "scripts/run_inference.py"]
+CMD /app/RFdiffusion/scripts/run_inference.py 
