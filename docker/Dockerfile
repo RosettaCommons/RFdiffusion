@@ -39,10 +39,9 @@ ENV PATH $CONDA_DIR/bin:$PATH
 
 COPY env/SE3nv.yml /tmp/SE3nv.yml 
 
-RUN  /root/mambaforge/bin/mamba  env create -f /tmp/SE3nv.yml 
+RUN  /root/mambaforge/bin/mamba  env create -f /tmp/SE3nv.yml  --prefix /opt/conda/envs/SE3nv
 
-ENV PATH /root/mambaforge/envs/SE3nv/bin:$PATH
-
+ENV PATH /opt/conda/envs/SE3nv/bin:$PATH
 
 COPY . /app/RFdiffusion/
 
@@ -51,4 +50,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN python setup.py install 
 RUN pip install /app/RFdiffusion
 
+ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/opt/conda/envs/SE3nv/lib/
 CMD /app/RFdiffusion/scripts/run_inference.py 
