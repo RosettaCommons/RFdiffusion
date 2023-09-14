@@ -214,6 +214,15 @@ Here, we're masking the residue identity of residue A1, and all residues between
 
 An example of executing motif scaffolding with the `contigmap.inpaint_seq` flag is located in `./examples/design_motifscaffolding_inpaintseq.sh`
 
+### inpaint_str
+In contrast to inpaint_seq, there are times when you know the sequence of something, but not its structure (e.g. you want to bind a flexible peptide). Inpaint_str allows you to mask (diffuse) the structure of a region, while giving its sequence. Simply specify the region whose structure you want to mask but where you want sequence.
+E.g.
+```
+contigmap.inpaint_str[\'B1-13'\]
+```
+This is particularly useful if you have e.g. a flexible peptide you want to bind to, but don't care about the precise conformation the peptide adopts in the complex.
+There is an example in examples/design_ppi_flexible_peptide.sh
+
 ### A note on `diffuser.T`
 RFdiffusion was originally trained with 200 discrete timesteps. However, recent improvements have allowed us to reduce the number of timesteps we need to use at inference time. In many cases, running with as few as approximately 20 steps provides outputs of equivalent *in silico* quality to running with 200 steps (providing a 10X speedup). The default is now set to 50 steps. Noting this is important for understanding the partial diffusion, described below. 
 
