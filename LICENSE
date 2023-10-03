@@ -2,7 +2,8 @@ BSD License
 
 Copyright (c) 2023 University of Washington. Developed at the Institute for
 Protein Design by Joseph Watson, David Juergens, Nathaniel Bennett, Brian Trippe
-and Jason Yim
+and Jason Yim. This copyright and license covers both the source code and model
+weights referenced for download in the README file.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
