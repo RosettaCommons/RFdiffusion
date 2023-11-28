@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/stornext/System/data/apps/rc-tools/rc-tools-1.0/bin/tools/envs/se3/bin/python
 """
 Inference script.
 
