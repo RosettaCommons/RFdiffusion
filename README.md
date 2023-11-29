@@ -1,3 +1,22 @@
+# For Milton users only
+
+## One-time setup
+```
+git clone https://github.com/jIskCoder/RFdiffusion_WEHI.git
+cd RFdiffusion_WEHI/
+mkdir model && cd model
+wget http://files.ipd.uw.edu/pub/RFdiffusion/6f5902ac237024bdd0c176cb93063dc4/Base_ckpt.pt
+```
+You can also download the rest of the models as specified [below](#getting-started--installation)
+
+## Running Scripts
+
+From the `RFdiffusion_WEHI` directory
+```
+./scripts/run_inference.py 'contigmap.contigs=[150-150]' inference.output_prefix=test_outputs/test inference.num_designs=10
+
+```
+
 # RF*diffusion*
 
 <!--
