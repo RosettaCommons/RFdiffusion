@@ -35,6 +35,27 @@ def make_deterministic(seed=0):
     random.seed(seed)
 
 
+def get_device_name(conf = None):
+    name = "auto"
+    if conf is not None:
+        name = conf.inference.device_name
+
+    if name == "auto":
+        name = "cpu"
+        if torch.cuda.is_available():
+            # CUDA device may be available, but too old
+            min_arch = min(
+                (int(arch.split("_")[1]) for arch in torch.cuda.get_arch_list()),
+                default=35,
+            )
+            a, b = torch.cuda.get_device_capability()
+            cur_arch = 10*a+b
+            if cur_arch >= min_arch:
+                name = torch.cuda.get_device_name(torch.cuda.current_device())
+
+    return name
+
+
 @hydra.main(version_base=None, config_path="../config/inference", config_name="base")
 def main(conf: HydraConfig) -> None:
     log = logging.getLogger(__name__)
@@ -43,14 +64,20 @@ def main(conf: HydraConfig) -> None:
     if conf.inference.deterministic:
         make_deterministic()
 
-    # Check for available GPU and print result of check
-    if torch.cuda.is_available():
-        device_name = torch.cuda.get_device_name(torch.cuda.current_device())
-        log.info(f"Found GPU with device_name {device_name}. Will run RFdiffusion on {device_name}")
+     # Check for available GPU and print result of check
+    if conf.inference.device_name == "auto":
+        device_name = get_device_name(conf)
+        if device_name == "cpu":
+            log.info("////////////////////////////////////////////////")
+            log.info("///// NO GPU DETECTED! Falling back to CPU /////")
+            log.info("////////////////////////////////////////////////")
+        else:
+            device_name = torch.cuda.get_device_name(torch.cuda.current_device())
+            log.info(f"Found GPU with device_name {device_name}. Will run RFdiffusion on {device_name!r}")
+        conf.inference.device_name = device_name
     else:
-        log.info("////////////////////////////////////////////////")
-        log.info("///// NO GPU DETECTED! Falling back to CPU /////")
-        log.info("////////////////////////////////////////////////")
+        device_name = conf.inference.device_name
+        log.info(f"Will run RFdiffusion on {device_name!r}")
 
     # Initialize sampler and target/contig.
     sampler = iu.sampler_selector(conf)
@@ -149,9 +176,7 @@ def main(conf: HydraConfig) -> None:
         trb = dict(
             config=OmegaConf.to_container(sampler._conf, resolve=True),
             plddt=plddt_stack.cpu().numpy(),
-            device=torch.cuda.get_device_name(torch.cuda.current_device())
-            if torch.cuda.is_available()
-            else "CPU",
+            device=device_name,
             time=time.time() - start_time,
         )
         if hasattr(sampler, "contig_map"):
