@@ -119,6 +119,7 @@ preprocess:
   
 logging:
   inputs: False
+  level: INFO
 
 scaffoldguided:
   scaffoldguided: False

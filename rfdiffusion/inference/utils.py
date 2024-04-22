@@ -398,7 +398,7 @@ class Denoise:
 
         # check for NaN's
         if torch.isnan(Ca_grads).any():
-            print("WARNING: NaN in potential gradients, replacing with zero grad.")
+            self._log.warning("WARNING: NaN in potential gradients, replacing with zero grad.")
             Ca_grads[:] = 0
 
         return Ca_grads
@@ -688,7 +688,7 @@ class BlockAdjacency:
              conf.scaffold_list as conf
              conf.inference.num_designs for sanity checking
         """
-       
+        self._log = logging.getLogger(__name__)
         self.conf=conf 
         # either list or path to .txt file with list of scaffolds
         if self.conf.scaffoldguided.scaffold_list is not None:
@@ -749,7 +749,7 @@ class BlockAdjacency:
         self.num_designs = num_designs
 
         if len(self.scaffold_list) > self.num_designs:
-            print(
+            self._log.warning(
                 "WARNING: Scaffold set is bigger than num_designs, so not every scaffold type will be sampled"
             )
 
@@ -889,7 +889,7 @@ class BlockAdjacency:
             self.item_n += 1
         else:
             item = random.choice(self.scaffold_list)
-        print("Scaffold constrained based on file: ", item)
+        self._log.info(f"Scaffold constrained based on file: {item}")
         # load files
         ss, adj = self.get_ss_adj(item)
         adj_orig = torch.clone(adj)

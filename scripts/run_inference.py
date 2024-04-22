@@ -38,6 +38,8 @@ def make_deterministic(seed=0):
 @hydra.main(version_base=None, config_path="../config/inference", config_name="base")
 def main(conf: HydraConfig) -> None:
     log = logging.getLogger(__name__)
+    logging.basicConfig(level=conf.logging.level)
+
     if conf.inference.deterministic:
         make_deterministic()
 
@@ -60,7 +62,7 @@ def main(conf: HydraConfig) -> None:
         indices = [-1]
         for e in existing:
             print(e)
-            m = re.match(".*_(\d+)\.pdb$", e)
+            m = re.match(r".*_(\d+)\.pdb$", e)
             print(m)
             if not m:
                 continue

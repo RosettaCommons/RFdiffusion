@@ -16,7 +16,6 @@ from hydra.core.hydra_config import HydraConfig
 import os
 
 from rfdiffusion.model_input_logger import pickle_function_call
-import sys
 
 SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
 
@@ -63,14 +62,14 @@ class Sampler:
         if conf.inference.model_directory_path is not None:
             model_directory = conf.inference.model_directory_path
         else:
-            model_directory = f"{SCRIPT_DIR}/../../models"
+            model_directory = os.path.realpath(f"{SCRIPT_DIR}/../../models")
 
-        print(f"Reading models from {model_directory}")
+        self._log.info(f"Reading models from {model_directory}")
 
         # Initialize inference only helper objects to Sampler
         if conf.inference.ckpt_override_path is not None:
             self.ckpt_path = conf.inference.ckpt_override_path
-            print("WARNING: You're overriding the checkpoint path from the defaults. Check that the model you're providing can run with the inputs you're providing.")
+            self._log.warning("WARNING: You're overriding the checkpoint path from the defaults. Check that the model you're providing can run with the inputs you're providing.")
         else:
             if conf.contigmap.inpaint_seq is not None or conf.contigmap.provide_seq is not None or conf.contigmap.inpaint_str:
                 # use model trained for inpaint_seq
@@ -122,7 +121,7 @@ class Sampler:
         if conf.inference.schedule_directory_path is not None:
             schedule_directory = conf.inference.schedule_directory_path
         else:
-            schedule_directory = f"{SCRIPT_DIR}/../../schedules"
+            schedule_directory = os.path.realpath(f"{SCRIPT_DIR}/../../schedules")
 
         # Check for cache schedule
         if not os.path.exists(schedule_directory):
@@ -147,8 +146,7 @@ class Sampler:
         
         if self.inf_conf.input_pdb is None:
             # set default pdb
-            script_dir=os.path.dirname(os.path.realpath(__file__))
-            self.inf_conf.input_pdb=os.path.join(script_dir, '../../examples/input_pdbs/1qys.pdb')
+            self.inf_conf.input_pdb= os.path.realpath(os.path.join(SCRIPT_DIR, '../../examples/input_pdbs/1qys.pdb'))
         self.target_feats = iu.process_target(self.inf_conf.input_pdb, parse_hetatom=True, center=False)
         self.chain_idx = None
 
@@ -176,8 +174,8 @@ class Sampler:
     def load_checkpoint(self) -> None:
         """Loads RF checkpoint, from which config can be generated."""
         self._log.info(f'Reading checkpoint from {self.ckpt_path}')
-        print('This is inf_conf.ckpt_path')
-        print(self.ckpt_path)
+        # print('This is inf_conf.ckpt_path')
+        # print(self.ckpt_path)
         self.ckpt  = torch.load(
             self.ckpt_path, map_location=self.device)
 
@@ -200,20 +198,20 @@ class Sampler:
         overrides = []
         if HydraConfig.initialized():
             overrides = HydraConfig.get().overrides.task
-        print("Assembling -model, -diffuser and -preprocess configs from checkpoint")
+        self._log.info("Assembling -model, -diffuser and -preprocess configs from checkpoint")
 
         for cat in ['model','diffuser','preprocess']:
             for key in self._conf[cat]:
                 try:
-                    print(f"USING MODEL CONFIG: self._conf[{cat}][{key}] = {self.ckpt['config_dict'][cat][key]}")
+                    self._log.debug(f"USING MODEL CONFIG: self._conf[{cat}][{key}] = {self.ckpt['config_dict'][cat][key]}")
                     self._conf[cat][key] = self.ckpt['config_dict'][cat][key]
-                except:
+                except Exception:
                     pass
         
         # add overrides back in again
         for override in overrides:
             if override.split(".")[0] in ['model','diffuser','preprocess']:
-                print(f'WARNING: You are changing {override.split("=")[0]} from the value this model was trained with. Are you sure you know what you are doing?') 
+                self._log.warning(f'WARNING: You are changing {override.split("=")[0]} from the value this model was trained with. Are you sure you know what you are doing?') 
                 mytype = type(self._conf[override.split(".")[0]][override.split(".")[1].split("=")[0]])
                 self._conf[override.split(".")[0]][override.split(".")[1].split("=")[0]] = mytype(override.split("=")[1])
 
@@ -226,9 +224,9 @@ class Sampler:
         model = RoseTTAFoldModule(**self._conf.model, d_t1d=self.d_t1d, d_t2d=self.d_t2d, T=self._conf.diffuser.T).to(self.device)
         if self._conf.logging.inputs:
             pickle_dir = pickle_function_call(model, 'forward', 'inference')
-            print(f'pickle_dir: {pickle_dir}')
+            self._log.debug(f'pickle_dir: {pickle_dir}')
         model = model.eval()
-        self._log.info(f'Loading checkpoint.')
+        self._log.info('Loading checkpoint.')
         model.load_state_dict(self.ckpt['model_state_dict'], strict=True)
         return model
 
@@ -526,7 +524,7 @@ class Sampler:
         if self.preprocess_conf.d_t1d >= 24: # add hotspot residues
             hotspot_tens = torch.zeros(L).float()
             if self.ppi_conf.hotspot_res is None:
-                print("WARNING: you're using a model trained on complexes and hotspot residues, without specifying hotspots.\
+                self._log.warning("WARNING: you're using a model trained on complexes and hotspot residues, without specifying hotspots.\
                          If you're doing monomer diffusion this is fine")
                 hotspot_idx=[]
             else:
