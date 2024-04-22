@@ -23,11 +23,11 @@ import hydra
 import logging
 from rfdiffusion.util import writepdb_multi, writepdb
 from rfdiffusion.inference import utils as iu
-from hydra.core.hydra_config import HydraConfig
+from rfdiffusion.schemas import RFDiffusionConfig
 import numpy as np
 import random
 import glob
-
+from typing import Optional
 
 def make_deterministic(seed=0):
     torch.manual_seed(seed)
@@ -35,7 +35,7 @@ def make_deterministic(seed=0):
     random.seed(seed)
 
 
-def get_device_name(conf = None):
+def get_device_name(conf: Optional[RFDiffusionConfig] = None):
     name = "auto"
     if conf is not None:
         name = conf.inference.device_name
@@ -57,7 +57,7 @@ def get_device_name(conf = None):
 
 
 @hydra.main(version_base=None, config_path="../config/inference", config_name="base")
-def main(conf: HydraConfig) -> None:
+def main(conf: RFDiffusionConfig) -> None:
     log = logging.getLogger(__name__)
     logging.basicConfig(level=conf.logging.level)
 

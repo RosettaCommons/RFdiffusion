@@ -14,6 +14,7 @@ import torch.nn.functional as nn
 from rfdiffusion import util
 from hydra.core.hydra_config import HydraConfig
 import os
+from rfdiffusion.schemas import RFDiffusionConfig
 
 from rfdiffusion.model_input_logger import pickle_function_call
 
@@ -26,7 +27,7 @@ REF_ANGLES   = util.reference_angles
 
 class Sampler:
 
-    def __init__(self, conf: DictConfig):
+    def __init__(self, conf: RFDiffusionConfig):
         """
         Initialize sampler.
         Args:
@@ -35,7 +36,7 @@ class Sampler:
         self.initialized = False
         self.initialize(conf)
         
-    def initialize(self, conf: DictConfig) -> None:
+    def initialize(self, conf: RFDiffusionConfig) -> None:
         """
         Initialize sampler.
         Args:
@@ -723,7 +724,7 @@ class ScaffoldedSampler(SelfConditioning):
     """ 
     Model Runner for Scaffold-Constrained diffusion
     """
-    def __init__(self, conf: DictConfig):
+    def __init__(self, conf: RFDiffusionConfig):
         """
         Initialize scaffolded sampler.
         Two basic approaches here:

@@ -7,6 +7,7 @@ from rfdiffusion.diffusion import get_beta_schedule
 from scipy.spatial.transform import Rotation as scipy_R
 from rfdiffusion.util import rigid_from_3_points
 from rfdiffusion.util_module import ComputeAllAtomCoords
+from rfdiffusion.schemas import RFDiffusionConfig
 from rfdiffusion import util
 import random
 import logging
@@ -501,7 +502,7 @@ class Denoise:
         return fullatom_next.squeeze()[:, :14, :], px0
 
 
-def sampler_selector(conf: DictConfig):
+def sampler_selector(conf: RFDiffusionConfig):
     if conf.scaffoldguided.scaffoldguided:
         sampler = model_runners.ScaffoldedSampler(conf)
     else:
@@ -512,7 +513,7 @@ def sampler_selector(conf: DictConfig):
         elif conf.inference.model_runner == "ScaffoldedSampler":
             sampler = model_runners.ScaffoldedSampler(conf)
         else:
-            raise ValueError(f"Unrecognized sampler {conf.model_runner}")
+            raise ValueError(f"Unrecognized sampler {conf.inference.model_runner}")
     return sampler
 
 
