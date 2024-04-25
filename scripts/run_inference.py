@@ -29,7 +29,11 @@ import random
 import glob
 from typing import Optional
 
+log = logging.getLogger(__name__)
+
+
 def make_deterministic(seed=0):
+    log.info(f"Setting random seed generator to {seed}")
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -58,13 +62,12 @@ def get_device_name(conf: Optional[RFDiffusionConfig] = None):
 
 @hydra.main(version_base=None, config_path="../config/inference", config_name="base")
 def main(conf: RFDiffusionConfig) -> None:
-    log = logging.getLogger(__name__)
     logging.basicConfig(level=conf.logging.level)
 
     if conf.inference.deterministic:
-        make_deterministic()
+        make_deterministic(conf.inference.seed)
 
-     # Check for available GPU and print result of check
+    # Check for available GPU and print result of check
     if conf.inference.device_name == "auto":
         device_name = get_device_name(conf)
         if device_name == "cpu":
@@ -99,7 +102,7 @@ def main(conf: RFDiffusionConfig) -> None:
 
     for i_des in range(design_startnum, design_startnum + sampler.inf_conf.num_designs):
         if conf.inference.deterministic:
-            make_deterministic(i_des)
+            make_deterministic(conf.inference.seed + i_des)
 
         start_time = time.time()
         out_prefix = f"{sampler.inf_conf.output_prefix}_{i_des}"

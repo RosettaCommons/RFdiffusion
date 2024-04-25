@@ -18,6 +18,7 @@ inference:
   symmetric_self_cond: True
   final_step: 1
   deterministic: False
+  seed: 0
   trb_save_ckpt_path: null
   schedule_directory_path: null
   model_directory_path: null

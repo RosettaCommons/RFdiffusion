@@ -37,7 +37,7 @@ class InferenceConfig(dict[str, Any]):
     symmetric_self_cond: bool
     final_step: int
     deterministic: bool
-    seed: None | int
+    seed: int
     trb_save_ckpt_path: Any
     schedule_directory_path: None | str
     model_directory_path: None | str
