@@ -237,7 +237,9 @@ class Sampler:
         Construct contig class describing the protein to be generated
         """
         self._log.info(f'Using contig: {self.contig_conf.contigs}')
-        return ContigMap(target_feats, **self.contig_conf)
+        contig_map = ContigMap(target_feats, **self.contig_conf)
+        self._log.info(f'Sampled contig: {contig_map.sampled_mask}')
+        return contig_map
 
     def construct_denoiser(self, L, visible):
         """Make length-specific denoiser."""
