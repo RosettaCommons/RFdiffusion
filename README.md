@@ -148,8 +148,10 @@ For this, we just need to specify three things:
 3. The number of designs we want
 
 ```
-./scripts/run_inference.py 'contigmap.contigs=[150-150]' inference.output_prefix=test_outputs/test inference.num_designs=10
+python ./scripts/run_inference.py 'contigmap.contigs=[150-150]' inference.output_prefix=test_outputs/test inference.num_designs=10
 ```
+
+(Use `python3` instead, if you have `python` point to python2.)
 
 Let's look at this in detail.
 Firstly, what is `contigmap.contigs`?
