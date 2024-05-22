@@ -72,7 +72,7 @@ class Sampler:
             self.ckpt_path = conf.inference.ckpt_override_path
             print("WARNING: You're overriding the checkpoint path from the defaults. Check that the model you're providing can run with the inputs you're providing.")
         else:
-            if conf.contigmap.inpaint_seq is not None or conf.contigmap.provide_seq is not None:
+            if conf.contigmap.inpaint_seq is not None or conf.contigmap.provide_seq is not None or conf.contigmap.inpaint_str:
                 # use model trained for inpaint_seq
                 if conf.contigmap.provide_seq is not None:
                     # this is only used for partial diffusion
