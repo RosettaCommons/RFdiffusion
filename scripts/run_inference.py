@@ -47,15 +47,18 @@ def get_device_name(conf: Optional[RFDiffusionConfig] = None):
     if name == "auto":
         name = "cpu"
         if torch.cuda.is_available():
+            log.debug("Cuda device found")
             # CUDA device may be available, but too old
             min_arch = min(
                 (int(arch.split("_")[1]) for arch in torch.cuda.get_arch_list()),
                 default=35,
             )
-            a, b = torch.cuda.get_device_capability()
-            cur_arch = 10*a+b
-            if cur_arch >= min_arch:
-                name = torch.cuda.get_device_name(torch.cuda.current_device())
+            for dev in range(torch.cuda.device_count()):
+                a, b = torch.cuda.get_device_capability(dev)
+                cur_arch = 10*a+b
+                if cur_arch >= min_arch:
+                    name = dev
+                    break
 
     return name
 
@@ -75,8 +78,8 @@ def main(conf: RFDiffusionConfig) -> None:
             log.info("///// NO GPU DETECTED! Falling back to CPU /////")
             log.info("////////////////////////////////////////////////")
         else:
-            device_name = torch.cuda.get_device_name(torch.cuda.current_device())
-            log.info(f"Found GPU with device_name {device_name}. Will run RFdiffusion on {device_name!r}")
+            _device_name = torch.cuda.get_device_name(device_name)
+            log.info(f"Found GPU with device_name {_device_name!r} (cuda:{device_name}). Will run RFdiffusion on {_device_name!r}")
         conf.inference.device_name = device_name
     else:
         device_name = conf.inference.device_name
