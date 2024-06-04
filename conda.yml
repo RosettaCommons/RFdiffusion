@@ -1,0 +1,26 @@
+name: rfd
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+  - dglteam
+  - nvidia
+dependencies:
+  - python=3.10
+  - pytorch<2
+  - torchaudio
+  - torchvision
+  - cudatoolkit=11.5
+  - dgl-cuda11.5
+  - torchdata>=0.5.0
+  - biopython
+  - pip
+  - pip:
+    - hydra-core
+    - pyrsistent
+    - e3nn
+    - pynvml
+    - git+https://github.com/NVIDIA/dllogger#egg=dllogger
+    - decorator
+    - ./env/SE3Transformer/
+    - -e ./
