@@ -98,7 +98,7 @@ class dimer_ROG(Potential):
         Ca_m2 = xyz[self.binderlen:,1] # [Lb,3]
 
         centroid_m1 = torch.mean(Ca_m1, dim=0, keepdim=True) # [1,3]
-        centroid_m2 = torch.mean(Ca_m1, dim=0, keepdim=True) # [1,3]
+        centroid_m2 = torch.mean(Ca_m2, dim=0, keepdim=True) # [1,3]
 
         # cdist needs a batch dimension - NRB
         #This calculates RoG for Monomer 1
