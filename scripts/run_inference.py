@@ -108,7 +108,7 @@ def main(conf: RFDiffusionConfig) -> None:
             make_deterministic(conf.inference.seed + i_des)
 
         start_time = time.time()
-        out_prefix = f"{sampler.inf_conf.output_prefix}_{i_des}"
+        out_prefix = f"{sampler.inf_conf.output_prefix}_{i_des:05d}"
         log.info(f"Making design {out_prefix}")
         if sampler.inf_conf.cautious and os.path.exists(out_prefix + ".pdb"):
             log.info(
