@@ -849,6 +849,7 @@ class ScaffoldedSampler(SelfConditioning):
             self.mask_seq = torch.from_numpy(self.contig_map.inpaint_seq)[None,:]
             self.mask_str = torch.from_numpy(self.contig_map.inpaint_str)[None,:]
             self.binderlen =  len(self.contig_map.inpaint)
+            self.L = len(self.contig_map.inpaint_seq)
             target_feats = self.target_feats
             contig_map = self.contig_map
 
