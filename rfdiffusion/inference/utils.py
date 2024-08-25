@@ -1001,3 +1001,15 @@ class Target:
 
     def get_target(self):
         return self.pdb
+
+def ss_from_contig(ss_masks: dict):
+    """  
+    Function for taking 1D masks for each of the ss types, and outputting a secondary structure input
+    """
+    L=len(ss_masks['helix'])
+    ss=torch.zeros((L, 4)).long()
+    ss[:,3] = 1 #mask
+    for idx, mask in enumerate([ss_masks['helix'],ss_masks['strand'], ss_masks['loop']]):
+        ss[mask,idx] = 1
+        ss[mask, 3] = 0 # remove the mask token
+    return ss
