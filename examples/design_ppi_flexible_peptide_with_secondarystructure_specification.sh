@@ -10,4 +10,4 @@
 # We then specify that we want this to adopt a helical conformation
 # If you wanted to specify that it should adopt a strand conformation, you would specify `contigmap.inpaint_str_strand`
 
-../scripts/run_inference.py inference.output_prefix=example_outputs/design_ppi_flexible_peptide_with_secondarystructure inference.input_pdb=input_pdbs/tau_peptide.pdb 'contigmap.contigs=[70-100/0 B165-178]' inference.num_designs=10 'contigmap.inpaint_str=[B165-178]' scaffoldguided.scaffoldguided=True 'contigmap.inpaint_str_strand=[B165-178]'
+../scripts/run_inference.py inference.output_prefix=example_outputs/design_ppi_flexible_peptide_with_secondarystructure inference.input_pdb=input_pdbs/tau_peptide.pdb 'contigmap.contigs=[70-100/0 B165-178]' inference.num_designs=10 'contigmap.inpaint_str=[B165-178]' scaffoldguided.scaffoldguided=True 'contigmap.inpaint_str_helix=[B165-178]'
