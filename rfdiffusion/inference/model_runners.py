@@ -304,7 +304,7 @@ class Sampler:
 
         xyz_27 = self.target_feats['xyz_27']
         mask_27 = self.target_feats['mask_27']
-        seq_orig = self.target_feats['seq']
+        seq_orig = self.target_feats['seq'].long()
         L_mapped = len(self.contig_map.ref)
         contig_map=self.contig_map
 
