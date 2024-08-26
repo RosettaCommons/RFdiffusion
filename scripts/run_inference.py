@@ -21,12 +21,15 @@ import torch
 from omegaconf import OmegaConf
 import hydra
 import logging
-from rfdiffusion.util import writepdb_multi, writepdb
+from rfdiffusion.util import writepdb_multi, writepdb, USER_DIR
 from rfdiffusion.inference import utils as iu
 from hydra.core.hydra_config import HydraConfig
 import numpy as np
 import random
 import glob
+
+# set hyfra inference config dir under environment variable control
+hydra_cfg_dir=os.environ.get('RFD_HYDRA_CFG', f"{USER_DIR}/config/inference")
 
 
 def make_deterministic(seed=0):
@@ -35,7 +38,7 @@ def make_deterministic(seed=0):
     random.seed(seed)
 
 
-@hydra.main(version_base=None, config_path="../config/inference", config_name="base")
+@hydra.main(version_base=None, config_path=hydra_cfg_dir, config_name="base")
 def main(conf: HydraConfig) -> None:
     log = logging.getLogger(__name__)
     if conf.inference.deterministic:

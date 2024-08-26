@@ -2,6 +2,17 @@ import scipy.sparse
 from rfdiffusion.chemical import *
 from rfdiffusion.scoring import *
 
+import sys
+from pathlib import Path
+# define RFdiffusion directory located in user HOME directory.
+USER_HOME=str(Path.home())
+USER_DIR=f"{USER_HOME}/rfdiffusion"
+
+try:
+    Path(USER_DIR).mkdir(parents=True, exist_ok=True)
+except FileExistsError as msg:
+    print(f'{USER_DIR} already exist and is a file.')
+    sys.exit(1)
 
 def generate_Cbeta(N, Ca, C):
     # recreate Cb given N,Ca,C
