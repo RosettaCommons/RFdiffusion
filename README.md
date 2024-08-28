@@ -1,5 +1,10 @@
 # For Milton users only
 
+## To build container 
+module load apptainer/1.3.3
+apptainer build --fakeroot rfdiffusion.sif Apptainer
+
+## To use already built container
 ## One-time setup
 ```
 git clone https://github.com/jIskCoder/RFdiffusion_WEHI.git
