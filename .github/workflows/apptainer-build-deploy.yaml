@@ -1,0 +1,35 @@
+name: Apptainer Build Deploy
+
+on:
+  pull_request:
+  push:
+    branches: container
+
+jobs:
+  build-test-container:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+      
+    env:
+      tag: ${{ github.sha }}
+      
+    name: Build Container
+    steps:
+      - name: Check out code for the container builds
+        uses: actions/checkout@v4
+        
+      - uses: eWaterCycle/setup-apptainer@v2
+        with:
+          apptainer-version: 1.3.0
+  
+      - name: Build Container
+        run: |
+           apptainer build container.sif Apptainer
+
+      - name: Login and Deploy Container
+        run: |
+           echo ${{ secrets.GITHUB_TOKEN }} | apptainer registry login -u ${{ github.actor }} --password-stdin oras://ghcr.io
+           apptainer push rfdiffusion.sif oras://ghcr.io/wehi-researchcomputing/rfdiffusion-container:latest
