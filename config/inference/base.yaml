@@ -26,6 +26,9 @@ contigmap:
   contigs: null
   inpaint_seq: null
   inpaint_str: null
+  inpaint_str_helix: null
+  inpaint_str_strand: null
+  inpaint_str_loop: null
   provide_seq: null
   length: null
 

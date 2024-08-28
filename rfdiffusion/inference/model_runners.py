@@ -741,7 +741,15 @@ class ScaffoldedSampler(SelfConditioning):
         """
         super().__init__(conf)
         # initialize BlockAdjacency sampling class
-        self.blockadjacency = iu.BlockAdjacency(conf, conf.inference.num_designs)
+        if conf.scaffoldguided.scaffold_dir is None:
+            assert any(x is not None for x in (conf.contigmap.inpaint_str_helix, conf.contigmap.inpaint_str_strand, conf.contigmap.inpaint_str_loop))
+            if conf.contigmap.inpaint_str_loop is not None:
+                assert conf.scaffoldguided.mask_loops == False, "You shouldn't be masking loops if you're specifying loop secondary structure"
+        else:
+            # initialize BlockAdjacency sampling class
+            assert all(x is None for x in (conf.contigmap.inpaint_str_helix, conf.contigmap.inpaint_str_strand, conf.contigmap.inpaint_str_loop)), "can't provide scaffold_dir if you're also specifying per-residue ss"
+            self.blockadjacency = iu.BlockAdjacency(conf.scaffoldguided, conf.inference.num_designs)
+
 
         #################################################
         ### Initialize target, if doing binder design ###
@@ -773,8 +781,11 @@ class ScaffoldedSampler(SelfConditioning):
         ##########################
         ### Process Fold Input ###
         ##########################
-        self.L, self.ss, self.adj = self.blockadjacency.get_scaffold()
-        self.adj = nn.one_hot(self.adj.long(), num_classes=3)
+        if hasattr(self, 'blockadjacency'):
+            self.L, self.ss, self.adj = self.blockadjacency.get_scaffold()
+            self.adj = nn.one_hot(self.adj.long(), num_classes=3)
+        else:
+            self.L=100 # shim. Get's overwritten
 
         ##############################
         ### Auto-contig generation ###
@@ -838,6 +849,7 @@ class ScaffoldedSampler(SelfConditioning):
             self.mask_seq = torch.from_numpy(self.contig_map.inpaint_seq)[None,:]
             self.mask_str = torch.from_numpy(self.contig_map.inpaint_str)[None,:]
             self.binderlen =  len(self.contig_map.inpaint)
+            self.L = len(self.contig_map.inpaint_seq)
             target_feats = self.target_feats
             contig_map = self.contig_map
 
@@ -848,7 +860,7 @@ class ScaffoldedSampler(SelfConditioning):
             seq_T=torch.full((L_mapped,),21)
             seq_T[contig_map.hal_idx0] = seq_orig[contig_map.ref_idx0]
             seq_T[~self.mask_seq.squeeze()] = 21
-            assert L_mapped==self.adj.shape[0]
+
             diffusion_mask = self.mask_str
             self.diffusion_mask = diffusion_mask
             
@@ -857,7 +869,13 @@ class ScaffoldedSampler(SelfConditioning):
             xT = get_init_xyz(xT).squeeze()
             atom_mask = torch.full((L_mapped, 27), False)
             atom_mask[contig_map.hal_idx0] = mask_27[contig_map.ref_idx0]
- 
+
+            if hasattr(self.contig_map, 'ss_spec'):
+                self.adj=torch.full((L_mapped, L_mapped),2) # masked
+                self.adj=nn.one_hot(self.adj.long(), num_classes=3)
+                self.ss=iu.ss_from_contig(self.contig_map.ss_spec)
+            assert L_mapped==self.adj.shape[0]
+            
         ####################
         ### Get hotspots ###
         ####################

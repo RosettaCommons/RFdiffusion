@@ -27,6 +27,9 @@ class ContigMap:
         inpaint_str_tensor=None,
         topo=False,
         provide_seq=None,
+        inpaint_str_strand=None,
+        inpaint_str_helix=None,
+        inpaint_str_loop=None
     ):
         # sanity checks
         if contigs is None and ref_idx is None:
@@ -48,12 +51,15 @@ class ContigMap:
         self.ref_idx = ref_idx
         self.hal_idx = hal_idx
         self.idx_rf = idx_rf
-        self.inpaint_seq = (
-            "/".join(inpaint_seq).split("/") if inpaint_seq is not None else None
-        )
-        self.inpaint_str = (
-            "/".join(inpaint_str).split("/") if inpaint_str is not None else None
-        )
+
+        parse_inpaint = lambda x: "/".join(x).split("/") if x is not None else None
+        self.inpaint_seq = parse_inpaint(inpaint_seq)
+        self.inpaint_str = parse_inpaint(inpaint_str)
+
+        self.inpaint_str_helix=parse_inpaint(inpaint_str_helix)
+        self.inpaint_str_strand=parse_inpaint(inpaint_str_strand)
+        self.inpaint_str_loop=parse_inpaint(inpaint_str_loop)
+
         self.inpaint_seq_tensor = inpaint_seq_tensor
         self.inpaint_str_tensor = inpaint_str_tensor
         self.parsed_pdb = parsed_pdb
@@ -124,6 +130,39 @@ class ContigMap:
                     ] = True
                 else:
                     self.inpaint_seq[int(i)] = True
+
+        """
+        We have now added the ability to specify the secondary structure of provided sequence.
+        This is described in Liu et al., 2024
+        https://www.biorxiv.org/content/10.1101/2024.07.16.603789v1
+        This is for the case that e.g. you have a sequence, but don't know the structure (like an IDR), but
+        want to specify the secondary structure of this sequence.
+        Making this compatible with the contigmap object allows all the variable length stuff to be handled.
+        
+        The logic:
+        Secondary structure is provided at the command line, using the following three flags:
+            inpaint_str_helix
+            inpaint_str_strand
+            inpaint_str_loop
+        
+        These are so named because they pertain to the region of the input pdb that you have applied inpaint_str to
+        In other words, any part of the input protein you are masking the structure of, you can specify the secondary structure of.
+        However, you can't specify the secondary structure of a region you're not applying inpaint_str to, as this doesn't make sense.
+        """
+
+        if any(x is not None for x in (inpaint_str_helix, inpaint_str_strand, inpaint_str_loop)):
+            self.ss_spec={}
+            order=['helix','strand','loop']
+            for idx, i in enumerate([inpaint_str_helix, inpaint_str_strand, inpaint_str_loop]):
+                if i is not None:
+                    self.ss_spec[order[idx]] = ~self.get_inpaint_seq_str(i, ss=True)
+                else:
+                    self.ss_spec[order[idx]] = np.zeros(len(self.inpaint_seq), dtype=bool)
+            # some sensible checks
+            for key, mask in self.ss_spec.items():
+                assert sum(mask*self.inpaint_str) == 0, f"You've specified {key} residues that are not structure-masked with inpaint_str. This doesn't really make sense."
+            stack=np.vstack([mask for mask in self.ss_spec.values()])
+            assert np.max(np.sum(stack, axis=0)) == 1, "You've given multiple secondary structure assignations to an input residue. This doesn't make sense."
 
     def get_sampled_mask(self):
         """
@@ -306,11 +345,14 @@ class ContigMap:
             inpaint_rf.tolist(),
         )
 
-    def get_inpaint_seq_str(self, inpaint_s):
-        """
+    def get_inpaint_seq_str(self, inpaint_s, ss=False):
+        '''
         function to generate inpaint_str or inpaint_seq masks specific to this contig
-        """
-        s_mask = np.copy(self.mask_1d)
+        '''
+        if not ss:
+            s_mask = np.copy(self.mask_1d)
+        else:
+            s_mask= np.ones(len(self.mask_1d), dtype=bool)
         inpaint_s_list = []
         for i in inpaint_s:
             if "-" in i:
