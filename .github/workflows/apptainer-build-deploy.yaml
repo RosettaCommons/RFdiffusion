@@ -32,4 +32,4 @@ jobs:
       - name: Login and Deploy Container
         run: |
            echo ${{ secrets.GITHUB_TOKEN }} | apptainer registry login -u ${{ github.actor }} --password-stdin oras://ghcr.io
-           apptainer push rfdiffusion.sif oras://ghcr.io/wehi-researchcomputing/rfdiffusion-container:latest
+           apptainer push rfdiffusion.sif oras://ghcr.io/wehi-researchcomputing/rfdiffusion:latest
