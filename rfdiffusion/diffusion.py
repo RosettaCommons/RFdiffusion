@@ -25,7 +25,11 @@ def get_beta_schedule(T, b0, bT, schedule_type, schedule_params={}, inference=Fa
 
     # Adjust b0 and bT if T is not 200
     # This is a good approximation, with the beta correction below, unless T is very small
-    assert T >= 15, "With discrete time and T < 15, the schedule is badly approximated"
+    assert T >= 1, 'T must be at least 1'
+    if T < 15:
+        print('!!!')
+        print("!!! With discrete time and T < 15, the schedule is badly approximated !!!")
+        print('!!!')
     b0 *= 200 / T
     bT *= 200 / T
 
