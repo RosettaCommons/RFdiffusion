@@ -31,7 +31,7 @@ import torch
 import torch.nn as nn
 from dgl import DGLGraph
 from torch import Tensor
-from torch.cuda.nvtx import range as nvtx_range
+from se3_transformer.model.monitoring import nvtx_range
 
 from se3_transformer.model.fiber import Fiber
 from se3_transformer.runtime.utils import degree_to_dim, unfuse_features

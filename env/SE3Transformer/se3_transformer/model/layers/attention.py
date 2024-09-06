@@ -34,7 +34,7 @@ from se3_transformer.model.fiber import Fiber
 from se3_transformer.model.layers.convolution import ConvSE3, ConvSE3FuseLevel
 from se3_transformer.model.layers.linear import LinearSE3
 from se3_transformer.runtime.utils import degree_to_dim, aggregate_residual, unfuse_features
-from torch.cuda.nvtx import range as nvtx_range
+from se3_transformer.model.monitoring import nvtx_range
 
 
 class AttentionSE3(nn.Module):
