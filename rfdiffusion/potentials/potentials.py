@@ -454,6 +454,30 @@ class substrate_contacts(Potential):
             self.motif_frame = xyz[rand_idx[0],:4]
             self.motif_mapping = [(rand_idx, i) for i in range(4)]
 
+
+class cleft_potential(Potential):
+    '''
+    Designs a cleft in the generated molecule
+    '''
+
+    def __init__(self, weight=1, radius=5):
+        self.weight = weight
+        self.radius = radius
+
+    def compute(self, xyz):
+        Ca = xyz[:,1] # [L,3]
+
+        centroid = torch.mean(Ca, dim=0, keepdim=True) # [1,3]
+
+        left = centroid[0][0] - radius
+        right = centroid[0][0] + radius
+        bottom = centroid[0][1]
+
+        count = Ca[(Ca[:, 0] > left) & (Ca[:, 0] < right) & (Ca[:, 1] > bottom)].shape[0]
+
+        return -1 * self.weight * count
+
+
 # Dictionary of types of potentials indexed by name of potential. Used by PotentialManager.
 # If you implement a new potential you must add it to this dictionary for it to be used by
 # the PotentialManager
@@ -464,7 +488,8 @@ implemented_potentials = { 'monomer_ROG':          monomer_ROG,
                            'interface_ncontacts':  interface_ncontacts,
                            'monomer_contacts':     monomer_contacts,
                            'olig_contacts':        olig_contacts,
-                           'substrate_contacts':    substrate_contacts}
+                           'substrate_contacts':   substrate_contacts,
+                           'cleft_potential':      cleft_potential}
 
 require_binderlen      = { 'binder_ROG',
                            'binder_distance_ReLU',
