@@ -748,7 +748,7 @@ class ScaffoldedSampler(SelfConditioning):
         else:
             # initialize BlockAdjacency sampling class
             assert all(x is None for x in (conf.contigmap.inpaint_str_helix, conf.contigmap.inpaint_str_strand, conf.contigmap.inpaint_str_loop)), "can't provide scaffold_dir if you're also specifying per-residue ss"
-            self.blockadjacency = iu.BlockAdjacency(conf.scaffoldguided, conf.inference.num_designs)
+            self.blockadjacency = iu.BlockAdjacency(conf, conf.inference.num_designs)
 
 
         #################################################
