@@ -188,6 +188,9 @@ def main(conf: HydraConfig) -> None:
             )
 
         log.info(f"Finished design in {(time.time()-start_time)/60:.2f} minutes")
+        log.info("Potential History")
+        for entry in sampler.potential_manager.history:
+            print(history)
 
 
 if __name__ == "__main__":

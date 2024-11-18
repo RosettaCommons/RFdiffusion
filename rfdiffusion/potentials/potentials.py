@@ -469,13 +469,44 @@ class cleft_potential(Potential):
 
         centroid = torch.mean(Ca, dim=0, keepdim=True) # [1,3]
 
-        left = centroid[0][0] - radius
-        right = centroid[0][0] + radius
+        left = centroid[0][0] - self.radius
+        right = centroid[0][0] + self.radius
         bottom = centroid[0][1]
 
-        count = Ca[(Ca[:, 0] > left) & (Ca[:, 0] < right) & (Ca[:, 1] > bottom)].shape[0]
+        in_cleft = Ca[(Ca[:, 0] > left) & (Ca[:, 0] < right) & (Ca[:, 1] > bottom)]
 
-        return -1 * self.weight * count
+        return -1 * self.weight * in_cleft.sum()
+
+
+class cleft_w_centered_substrate_potential(Potential):
+    '''
+    Designs a cleft in the generated molecule
+    '''
+
+    def __init__(self, weight=1):
+        self.weight = weight
+
+    def compute(self, xyz):
+        # Centroid of the feature
+        Ca = xyz[:,1] # [L,3]
+        centroid = torch.mean(Ca, dim=0, keepdim=True) # [1,3]
+
+        # Alpha carbons of the substrate
+        diffusion_mask = self.diffusion_mask
+        Ca_site = xyz[diffusion_mask, 1]
+        Ca_other = xyz[~diffusion_mask, 1]
+
+        left = centroid[0][0] - self.radius
+        right = centroid[0][0] + self.radius
+        bottom = centroid[0][1]
+
+        # Get the sum of the atoms in the cleft
+        in_cleft = Ca_other[(Ca_other[:, 0] > left) & (Ca_other[:, 0] < right) & (Ca_other[:, 1] > bottom)]
+
+        # Get the mean of the distance between the active site and centroid
+        site_off_balance = torch.cdist(Ca_site, centroid, p=2.0).mean()
+
+        return -1 * self.weight * torch.add(in_cleft.sum(), site_off_balance)
 
 
 # Dictionary of types of potentials indexed by name of potential. Used by PotentialManager.
@@ -489,7 +520,8 @@ implemented_potentials = { 'monomer_ROG':          monomer_ROG,
                            'monomer_contacts':     monomer_contacts,
                            'olig_contacts':        olig_contacts,
                            'substrate_contacts':   substrate_contacts,
-                           'cleft_potential':      cleft_potential}
+                           'cleft_potential':      cleft_potential,
+                           'cleft_w_centered_substrate_potential': cleft_w_centered_substrate_potential}
 
 require_binderlen      = { 'binder_ROG',
                            'binder_distance_ReLU',

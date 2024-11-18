@@ -115,6 +115,9 @@ class PotentialManager:
 
         self.potentials_to_apply = self.initialize_all_potentials(setting_list)
         self.T = diffuser_config.T
+
+        # Store the history of each potential here
+        self.history = []
         
     def is_empty(self):
         '''
@@ -173,6 +176,7 @@ class PotentialManager:
         '''
 
         potential_list = [potential.compute(xyz) for potential in self.potentials_to_apply]
+        self.history.append(potential_list)
         potential_stack = torch.stack(potential_list, dim=0)
 
         return torch.sum(potential_stack, dim=0)

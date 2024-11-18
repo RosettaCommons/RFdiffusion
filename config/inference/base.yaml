@@ -104,6 +104,7 @@ potentials:
   olig_intra_all : null
   olig_custom_contact : null
   substrate: null
+  cleft_w_centered_substrate_potential: null
 
 contig_settings:
   ref_idx: null
