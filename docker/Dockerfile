@@ -31,6 +31,7 @@ RUN apt-get -q update \
   && apt-get autoremove -y \
   && apt-get clean \
   && pip install -q --no-cache-dir \
+  numpy==1.24.3 \ # numpy2 does not work w/ current RFDiffusion
   dgl==1.0.2+cu116 -f https://data.dgl.ai/wheels/cu116/repo.html \
   torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 \
   e3nn==0.3.3 \
