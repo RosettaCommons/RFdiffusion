@@ -389,11 +389,11 @@ class Sampler:
         #########################################
 
         if self.potential_conf.guiding_potentials is not None:
-            if any(list(filter(lambda x: "substrate_contacts" in x, self.potential_conf.guiding_potentials))):
+            # if any(list(filter(lambda x: "substrate_contacts" in x, self.potential_conf.guiding_potentials))):
                 assert len(self.target_feats['xyz_het']) > 0, "If you're using the Substrate Contact potential, \
                         you need to make sure there's a ligand in the input_pdb file!"
                 het_names = np.array([i['name'].strip() for i in self.target_feats['info_het']])
-                xyz_het = self.target_feats['xyz_het'][het_names == self._conf.potentials.substrate]
+                xyz_het = self.target_feats['xyz_het'][np.isin(het_names, self._conf.potentials.substrate.split(","))]
                 xyz_het = torch.from_numpy(xyz_het)
                 assert xyz_het.shape[0] > 0, f'expected >0 heteroatoms from ligand with name {self._conf.potentials.substrate}'
                 xyz_motif_prealign = xyz_motif_prealign[0,0][self.diffusion_mask.squeeze()]
@@ -604,11 +604,15 @@ class Sampler:
                 diffusion_mask=self.mask_str.squeeze(),
                 align_motif=self.inf_conf.align_motif
             )
+            print(x_t_1)
+            print(px0)
         else:
             x_t_1 = torch.clone(px0).to(x_t.device)
             seq_t_1 = torch.clone(seq_init)
             px0 = px0.to(x_t.device)
-
+            print("t<=final")
+            print(x_t_1)
+            print(px0)
         if self.symmetry is not None:
             x_t_1, seq_t_1 = self.symmetry.apply_symmetry(x_t_1, seq_t_1)
 
@@ -700,11 +704,17 @@ class SelfConditioning(Sampler):
                 align_motif=self.inf_conf.align_motif,
                 include_motif_sidechains=self.preprocess_conf.motif_sidechain_input
             )
+            #print("t>final")
+            #print(x_t_1.shape)
+            #print(px0.shape)
             self._log.info(
                     f'Timestep {t}, input to next step: { seq2chars(torch.argmax(seq_t_1, dim=-1).tolist())}')
         else:
             x_t_1 = torch.clone(px0).to(x_t.device)
             px0 = px0.to(x_t.device)
+            #print("t<=final")
+            #print(x_t_1.shape)
+            #print(px0.shape)
 
         ######################
         ### Apply symmetry ###

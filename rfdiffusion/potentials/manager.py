@@ -116,6 +116,9 @@ class PotentialManager:
         self.potentials_to_apply = self.initialize_all_potentials(setting_list)
         self.T = diffuser_config.T
         
+        # Store the history of each potential here
+        self.history = []        
+
     def is_empty(self):
         '''
             Check whether this instance of PotentialManager actually contains any potentials
@@ -146,6 +149,9 @@ class PotentialManager:
 
         to_apply = []
 
+        print("setting_list")
+        print(setting_list)
+
         for potential_dict in setting_list:
             assert(potential_dict['type'] in potentials.implemented_potentials), f'potential with name: {potential_dict["type"]} is not one of the implemented potentials: {potentials.implemented_potentials.keys()}'
 
@@ -167,12 +173,26 @@ class PotentialManager:
 
         return to_apply
 
+    def write_history(self, potential_list):
+        '''
+            Write the history for the potentials
+        '''
+        entry = {}
+        for i in range(len(potential_list)):
+            name = self.potentials_to_apply[i].__class__.__name__
+            score = float(potential_list[i])
+            entry[name] = score
+            entry.update(self.potentials_to_apply[i].breakdown)
+
+        self.history.append(entry)
+
     def compute_all_potentials(self, xyz):
         '''
             This is the money call. Take the current sequence and structure information and get the sum of all of the potentials that are being used
         '''
 
         potential_list = [potential.compute(xyz) for potential in self.potentials_to_apply]
+        self.write_history(potential_list)
         potential_stack = torch.stack(potential_list, dim=0)
 
         return torch.sum(potential_stack, dim=0)

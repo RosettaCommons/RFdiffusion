@@ -387,6 +387,11 @@ class Denoise:
             xyz.grad.zero_()
 
         current_potential = self.potential_manager.compute_all_potentials(xyz)
+        #print("CURRENT POTENTIAL")
+        #node = current_potential.grad_fn
+        #while node is not None:
+        #    print(f"Node: {node}")
+        #    node = node.next_functions[0][0] if node.next_functions else None
         current_potential.backward()
 
         # Since we are not moving frames, Cb grads are same as Ca grads
@@ -484,9 +489,10 @@ class Denoise:
         grad_ca = self.get_potential_gradients(
             xt.clone(), diffusion_mask=diffusion_mask
         )
-
+        # print("grad_ca")
+        # print(grad_ca.shape)
         ca_deltas += self.potential_manager.get_guide_scale(t) * grad_ca
-
+        # print(ca_deltas.shape)
         # add the delta to the new frames
         frames_next = torch.from_numpy(frames_next) + ca_deltas[:, None, :]  # translate
 

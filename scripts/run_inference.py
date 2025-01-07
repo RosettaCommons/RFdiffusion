@@ -27,6 +27,7 @@ from hydra.core.hydra_config import HydraConfig
 import numpy as np
 import random
 import glob
+import csv
 
 
 def make_deterministic(seed=0):
@@ -67,6 +68,14 @@ def main(conf: HydraConfig) -> None:
             m = m.groups()[0]
             indices.append(int(m))
         design_startnum = max(indices) + 1
+
+    loss_history_file = conf.logging.loss_history_file
+    if not loss_history_file:
+        loss_history_file = "dummy.csv"
+
+    csvfile = open(loss_history_file, "w")
+    writer = csv.DictWriter(csvfile, fieldnames=["design", "substrate_contacts", "ContactEnergy", "RepulseEnergy", "CenterEnergy"])
+    writer.writeheader()
 
     for i_des in range(design_startnum, design_startnum + sampler.inf_conf.num_designs):
         if conf.inference.deterministic:
@@ -188,6 +197,13 @@ def main(conf: HydraConfig) -> None:
             )
 
         log.info(f"Finished design in {(time.time()-start_time)/60:.2f} minutes")
+        final_history = sampler.potential_manager.history[-1]
+        print("Final History")
+        print(final_history)
+        final_history['design'] = out_prefix
+        writer.writerow(final_history)
+
+    csvfile.close()
 
 
 if __name__ == "__main__":

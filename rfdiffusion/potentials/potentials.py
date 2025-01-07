@@ -21,6 +21,7 @@ class Potential:
         '''
         raise NotImplementedError('Potential compute function was not overwritten')
 
+
 class monomer_ROG(Potential):
     '''
         Radius of Gyration potential for encouraging monomer compactness
@@ -342,6 +343,12 @@ def poly_repulse(dgram, r, slope, p=1):
 
     return (dgram < r) * a * torch.abs(r - dgram)**p * slope
 
+def substrate_centered(dgram, weight=1, min_dist=15):
+    lca = dgram.shape[0]
+    dgram = torch.maximum(min_dist * torch.ones_like(dgram.squeeze(0)), dgram.squeeze(0)) # [L,1,3]
+    rad_of_gyration = torch.sqrt( torch.sum(torch.square(dgram)) / lca ) # [1]
+    return -1 * weight * rad_of_gyration
+
 #def only_top_n(dgram
 
 
@@ -396,14 +403,26 @@ class substrate_contacts(Potential):
         #cdist needs a batch dimension - NRB
         dgram = torch.cdist(Ca[None,...].contiguous(), substrate_atoms.float()[None], p=2)[0] # [Lb,Lb]
 
+        # Calculate the energy functions
         all_energies = []
+
+        contact_energy = self.energies[0](dgram).sum()
+        all_energies.append(contact_energy)
+
+        repulse_energy = self.energies[1](dgram).sum()
+        all_energies.append(repulse_energy)
+
+        center_energy = substrate_centered(dgram)
+        all_energies.append(center_energy)
+
+        self.breakdown = {'ContactEnergy': float(contact_energy), 'RepulseEnergy': float(repulse_energy), 'CenterEnergy': float(center_energy)}
+
         for i, energy_fn in enumerate(self.energies):
             energy = energy_fn(dgram)
             all_energies.append(energy.sum())
-        return - self.weight * sum(all_energies)
 
-        #Potential value is the average of both radii of gyration (is avg. the best way to do this?)
-        return self.weight * ncontacts.sum()
+        print(f"WEIGHT {self.weight}")
+        return -1 * self.weight * sum(all_energies)
 
     def _recover_affine(self,frame1, frame2):
         """
@@ -454,6 +473,92 @@ class substrate_contacts(Potential):
             self.motif_frame = xyz[rand_idx[0],:4]
             self.motif_mapping = [(rand_idx, i) for i in range(4)]
 
+
+class cleft_potential(Potential):
+    '''
+    Designs a cleft in the generated molecule, excluding active site
+    '''
+
+    def __init__(self, weight=1, radius=5):
+        self.weight = weight
+        self.radius = radius
+
+    def compute(self, xyz):
+        # Centroid of the feature
+        Ca = xyz[:,1] # [L,3]
+        centroid = torch.mean(Ca, dim=0, keepdim=True) # [1,3]
+
+        # Alpha carbons of the substrate
+        diffusion_mask = self.diffusion_mask
+        Ca_other = xyz[~diffusion_mask, 1]
+
+        left = centroid[0][0] - self.radius
+        right = centroid[0][0] + self.radius
+        bottom = centroid[0][1]
+
+        # Get the sum of the atoms in the cleft
+        in_cleft = Ca_other[(Ca_other[:, 0] > left) & (Ca_other[:, 0] < right) & (Ca_other[:, 1] > bottom)]
+
+        return -1 * self.weight * in_cleft.sum()
+
+
+class centered_site(Potential):
+    '''
+    Centers the active site in the generated molecule
+    '''
+
+    def __init__(self, weight=1):
+        self.weight = weight
+
+    def compute(self, xyz):
+        diffusion_mask = self.diffusion_mask
+
+        # Centroid of the feature
+        Ca = xyz[~diffusion_mask, 1] # [L,3]
+        centroid = torch.mean(Ca, dim=0, keepdim=True) # [1,3]
+
+        # Alpha carbons not involved in the active site
+        Ca_site = xyz[diffusion_mask, 1]
+        site_centroid = torch.mean(Ca_site, dim=0, keepdim=True)
+
+        # Get the mean of the distance between the active site and centroid
+        site_off_balance = torch.cdist(centroid, site_centroid, p=2.0).mean()
+
+        return self.weight * site_off_balance
+
+
+class cleft_w_centered_substrate_potential(Potential):
+    '''
+    Designs a cleft in the generated molecule
+    '''
+
+    def __init__(self, weight=1, radius=5):
+        self.weight = weight
+        self.radius = radius
+
+    def compute(self, xyz):
+        # Centroid of the feature
+        Ca = xyz[:,1] # [L,3]
+        centroid = torch.mean(Ca, dim=0, keepdim=True) # [1,3]
+
+        # Alpha carbons of the substrate
+        diffusion_mask = self.diffusion_mask
+        Ca_site = xyz[diffusion_mask, 1]
+        Ca_other = xyz[~diffusion_mask, 1]
+
+        left = centroid[0][0] - self.radius
+        right = centroid[0][0] + self.radius
+        bottom = centroid[0][1]
+
+        # Get the sum of the atoms in the cleft
+        in_cleft = Ca_other[(Ca_other[:, 0] > left) & (Ca_other[:, 0] < right) & (Ca_other[:, 1] > bottom)]
+
+        # Get the mean of the distance between the active site and centroid
+        site_off_balance = torch.cdist(Ca_site, centroid, p=2.0).mean()
+
+        return -1 * self.weight * torch.add(in_cleft.sum(), site_off_balance)
+
+
 # Dictionary of types of potentials indexed by name of potential. Used by PotentialManager.
 # If you implement a new potential you must add it to this dictionary for it to be used by
 # the PotentialManager
@@ -464,7 +569,10 @@ implemented_potentials = { 'monomer_ROG':          monomer_ROG,
                            'interface_ncontacts':  interface_ncontacts,
                            'monomer_contacts':     monomer_contacts,
                            'olig_contacts':        olig_contacts,
-                           'substrate_contacts':    substrate_contacts}
+                           'substrate_contacts':   substrate_contacts,
+                           'cleft_potential':      cleft_potential,
+                           'centered_site':        centered_site,
+                           'cleft_w_centered_substrate_potential': cleft_w_centered_substrate_potential}
 
 require_binderlen      = { 'binder_ROG',
                            'binder_distance_ReLU',
