@@ -1,8 +1,10 @@
 # For Milton users only
 
 ## To build container 
+```
 module load apptainer/1.3.3
 apptainer build --fakeroot rfdiffusion.sif Apptainer
+```
 
 
 # RF*diffusion*
