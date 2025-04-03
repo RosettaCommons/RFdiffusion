@@ -16,6 +16,9 @@ From: nvcr.io/nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
     # Clone the RFdiffusion repository
     git clone https://github.com/WEHI-ResearchComputing/RFdiffusion_WEHI.git /app/RFdiffusion
 
+    # Clone the ProteinMPNN repository
+    git clone https://github.com/dauparas/ProteinMPNN.git /app/ProteinMPNN
+
     # Installing the provided versions of pip packages
     pip install -q --no-cache-dir \
         dgl==1.0.2+cu116 -f https://data.dgl.ai/wheels/cu116/repo.html \
@@ -33,14 +36,15 @@ From: nvcr.io/nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
         dm-tree==0.1.8 \
         biopython==1.81 \
         ml-collections==0.1.1 \
+        numpy==1.24 \
         tensorflow==2.13.0 \
         /app/RFdiffusion/env/SE3Transformer
 
     # Install JAXlib using the new installation protocol
     pip install -q --no-cache-dir https://storage.googleapis.com/jax-releases/cuda11/jaxlib-0.4.16+cuda11.cudnn86-cp310-cp310-manylinux2014_x86_64.whl
-
+    
     # Install from provided pip command
-    pip install -q --no-cache-dir git+https://github.com/sokrypton/ColabDesign.git
+    pip install -q --no-cache-dir git+https://github.com/WEHI-ResearchComputing/ColabDesign.git
 
     # Installing RFdiffusion
     pip install --no-cache-dir /app/RFdiffusion --no-deps

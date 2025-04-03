@@ -9,21 +9,29 @@
 #SBATCH -o logs/5TPN.output
 #SBATCH -e logs/5TPN.error
 
+
+input_path=/vast/scratch/users/$USER/inputs
+output_path=/vast/scratch/users/$USER/outputs
+schedule_path=/vast/scratch/users/$USER/schedule
+
 module load apptainer/1.3.3
-mkdir /vast/scratch/users/$USER/inputs
-mkdir /vast/scratch/users/$USER/outputs
-mkdir /vast/scratch/users/$USER/schedule
-wget -P /vast/scratch/users/$USER/inputs https://files.rcsb.org/view/5TPN.pdb
+
+##comment the next three files if already created.
+mkdir $input_path
+mkdir $output_path
+mkdir $schedule_path
+
+wget -P $input_path https://files.rcsb.org/view/5TPN.pdb
 
 apptainer run --nv \
 -B /vast/projects/alphafold/databases/predictedDb/RFDiffusion/models:$HOME/models  \
--B /vast/scratch/users/$USER/inputs:$HOME/inputs \
--B /vast/scratch/users/$USER/outputs:$HOME/outputs \
--B /vast/scratch/users/$USER/schedule:$HOME/schedule \
-../rfdiffusion.sif \
-inference.output_prefix=outputs/ \
-inference.model_directory_path=models \
-inference.input_pdb=inputs/5TPN.pdb \
-inference.schedule_directory_path=schedule \
+-B $input_path:$HOME/inputs \
+-B $output_path:$HOME/outputs \
+-B $schedule_path:$HOME/schedule \
+/stornext/System/data/apps/rc-tools/rc-tools-1.0/bin/tools/rfdiffusion.sif \
+inference.output_prefix=$HOME/outputs/ \
+inference.model_directory_path=$HOME/models \
+inference.input_pdb=$HOME/inputs/5TPN.pdb \
+inference.schedule_directory_path=$HOME/schedule \
 inference.num_designs=3 \
 'contigmap.contigs=[10-40/A163-181/10-40]'
