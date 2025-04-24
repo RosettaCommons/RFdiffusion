@@ -49,3 +49,4 @@ WORKDIR /app/RFdiffusion
 ENV DGLBACKEND="pytorch"
 
 ENTRYPOINT ["python3.9", "scripts/run_inference.py"]
+
