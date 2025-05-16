@@ -80,6 +80,7 @@ class ContigMap:
                 self.inpaint,
                 self.inpaint_hal,
                 self.inpaint_rf,
+                self.sampled_mask_length_bound,
             ) = self.expand_sampled_mask()
             self.ref = self.inpaint + self.receptor
             self.hal = self.inpaint_hal + self.receptor_hal
@@ -241,6 +242,8 @@ class ContigMap:
         inpaint_chain_idx = -1
         receptor_chain_break = []
         inpaint_chain_break = []
+        _receptor_mask_length_bound = []
+        _inpaint_mask_length_bound = []
         for con in self.sampled_mask:
             if (
                 all([i[0].isalpha() for i in con.split("/")[:-1]])
@@ -286,6 +289,7 @@ class ContigMap:
                         receptor_chain_break.append(
                             (receptor_idx - 1, 200)
                         )  # 200 aa chain break
+                _receptor_mask_length_bound.append(len(receptor))
             else:
                 inpaint_chain_idx += 1
                 for subcon in con.split("/"):
@@ -320,6 +324,7 @@ class ContigMap:
                         )
                         inpaint_idx += int(subcon.split("-")[0])
                 inpaint_chain_break.append((inpaint_idx - 1, 200))
+                _inpaint_mask_length_bound.append(len(inpaint))
 
         if self.topo is True or inpaint_hal == []:
             receptor_hal = [(i[0], i[1]) for i in receptor_hal]
@@ -335,7 +340,13 @@ class ContigMap:
             inpaint_rf[ch_break[0] :] += ch_break[1]
         for ch_break in receptor_chain_break[:-1]:
             receptor_rf[ch_break[0] :] += ch_break[1]
-
+        sampled_mask_length_bound = []
+        sampled_mask_length_bound.extend(_inpaint_mask_length_bound)
+        if _inpaint_mask_length_bound:
+            inpaint_last_bound = _inpaint_mask_length_bound[-1]
+        else:
+            inpaint_last_bound = 0
+        sampled_mask_length_bound.extend(map(lambda x: x + inpaint_last_bound, _receptor_mask_length_bound))
         return (
             receptor,
             receptor_hal,
@@ -343,6 +354,7 @@ class ContigMap:
             inpaint,
             inpaint_hal,
             inpaint_rf.tolist(),
+            sampled_mask_length_bound
         )
 
     def get_inpaint_seq_str(self, inpaint_s, ss=False):
