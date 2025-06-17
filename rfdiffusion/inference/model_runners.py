@@ -317,7 +317,8 @@ class Sampler:
         self.chain_idx = []
         self.idx_pdb = []
         all_chains = {contig_ref[0] for contig_ref in self.contig_map.ref}
-        available_chains = sorted(list(set(string.ascii_uppercase) - all_chains))
+        available_chains = sorted(list(set(string.ascii_letters) - all_chains))
+
         # Iterate over each chain
         for last_res in length_bound:
             chain_ids = {contig_ref[0] for contig_ref in self.contig_map.ref[first_res: last_res]}
@@ -328,6 +329,10 @@ class Sampler:
                 chain_ids = chain_ids - {"_"}
                 # If there are no fixed residues that have a chain id, pick the first available letter
                 if not chain_ids:
+                    if not available_chains:
+                        raise ValueError(f"No available chains!  You are trying to design a new chain, and you have "
+                                         f"already used all upper- and lower-case chain ids (up to 52 chains): "
+                                         f"{','.join(all_chains)}.")
                     chain_id = available_chains[0]
                     available_chains.remove(chain_id)
                 # Otherwise, use the chain of the fixed (motif) residues
