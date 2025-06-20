@@ -45,6 +45,7 @@ RFdiffusion is an open source method for structure generation, with or without c
     - [Generation of Symmetric Oligomers](#generation-of-symmetric-oligomers)
     - [Using Auxiliary Potentials](#using-auxiliary-potentials)
     - [Symmetric Motif Scaffolding.](#symmetric-motif-scaffolding)
+    - [RFpeptides macrocycle design](#macrocyclic-peptide-design-with-rfpeptides)
     - [A Note on Model Weights](#a-note-on-model-weights)
     - [Things you might want to play with at inference time](#things-you-might-want-to-play-with-at-inference-time)
     - [Understanding the output files](#understanding-the-output-files)
@@ -463,6 +464,51 @@ For now, we require that a user have a symmetrized version of their motif in the
 This example script `examples/design_nickel.sh` can be used to scaffold the C4 symmetric Nickel binding domains shown in the RFdiffusion paper. It combines many concepts discussed earlier, including symmetric oligomer generation, motif scaffolding, and use of guiding potentials.
 
 Note that the contigs should specify something that is precisely symmetric. Things will break if this is not the case. 
+
+---
+
+### Macrocyclic peptide design with RFpeptides Add commentMore actions
+<img src="./img/rfpeptides_fig1.png" alt="alt text" width="400px" align="right"/>
+We have recently published the RFpeptides protocol for using RFdiffusion to design macrocyclic peptides that bind target proteins with atomic accuracy (Rettie, Juergens, Adebomi, et al., 2025). In this section we briefly outline how to run this inference protocol. We have added two examples for running macrocycle design with the RFpeptides protocol. One for monomeric design, and one for binder design.
+
+NOTE: Until the pull request is merged, you can find this code in the branch `rfpeptides`. 
+
+```
+examples/design_macrocyclic_monomer.sh
+examples/design_macrocyclic_binder.sh
+```
+#### RFpeptides binder design
+<img src="./img/rfpeptides_binder.png" alt="alt text" width="1100" align="center"/>
+
+To design a macrocyclic peptide to bind a target, the flags needed are very similar to classic binder design, but with two additional flags: 
+```
+#!/bin/bash 
+
+prefix=./outputs/diffused_binder_cyclic2
+
+# Note that the indices in this pdb file have been 
+# shifted by +2 in chain A relative to pdbID 7zkr.
+pdb='./input_pdbs/7zkr_GABARAP.pdb'
+
+num_designs=10
+script="../scripts/run_inference.py"
+$script --config-name base \
+inference.output_prefix=$prefix \
+inference.num_designs=$num_designs \
+'contigmap.contigs=[12-18 A3-117/0]' \
+inference.input_pdb=$pdb \
+inference.cyclic=True \
+diffuser.T=50 \
+inference.cyc_chains='a' \
+ppi.hotspot_res=[\'A51\',\'A52\',\'A50\',\'A48\',\'A62\',\'A65\'] \
+```
+
+The new flags are `inference.cyclic=True` and `inference.cyc_chains`. Yes, they are somewhat redundant. 
+
+`inference.cyclic` simply notifies the program that the user would like to design at least one macrocycle, and `inference.cyc_chains` is just a string containing the letter of every chain you would like to design as a cyclic peptide. In the example above, only chain `A` (`inference.cyc_chains='a'`) is cyclized, but one could do `inference.cyc_chains='abcd'` if they so desired (and the contigs was compatible with this, which the above one is not). 
+
+#### RFpeptides monomer design
+For monomer design, you can simply adjust the contigs to only contain a single generated chain e.g., `contigmap.contigs=[12-18]`, keep the `inference.cyclic=True` and `inference.cyc_chains='a'`, and you're off to the races making monomers.
 
 ---
 

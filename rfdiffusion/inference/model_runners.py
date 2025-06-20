@@ -278,7 +278,29 @@ class Sampler:
         self.mappings = self.contig_map.get_mappings()
         self.mask_seq = torch.from_numpy(self.contig_map.inpaint_seq)[None,:]
         self.mask_str = torch.from_numpy(self.contig_map.inpaint_str)[None,:]
-        self.binderlen =  len(self.contig_map.inpaint)     
+        self.binderlen =  len(self.contig_map.inpaint)    
+        
+        #######################################
+        ### Resolve cyclic peptide indicies ###
+        #######################################
+        if self._conf.inference.cyclic:
+            if self._conf.inference.cyc_chains is None:
+                # default to all residues being cyclized
+                self.cyclic_reses = ~self.mask_str.to(self.device).squeeze()
+            else:
+                # use cyc_chains arg to determine cyclic_reses mask
+                assert type(self._conf.inference.cyc_chains) is str, 'cyc_chains arg must be string'
+                cyc_chains  = self._conf.inference.cyc_chains
+                cyc_chains  = [i.upper() for i in cyc_chains]
+                hal_idx     = self.contig_map.hal # the pdb indices of output, knowledge of different chains
+                is_cyclized = torch.zeros_like(self.mask_str).bool().to(self.device).squeeze() # initially empty
+
+                for ch in cyc_chains:
+                    ch_mask = torch.tensor([idx[0] == ch for idx in hal_idx]).bool()
+                    is_cyclized[ch_mask] = True # set this whole chain to be cyclic
+                self.cyclic_reses = is_cyclized
+        else:
+            self.cyclic_reses = torch.zeros_like(self.mask_str).bool().to(self.device).squeeze()
 
         ####################
         ### Get Hotspots ###
@@ -675,7 +697,8 @@ class SelfConditioning(Sampler):
                                 state_prev = None,
                                 t=torch.tensor(t),
                                 return_infer=True,
-                                motif_mask=self.diffusion_mask.squeeze().to(self.device))   
+                                motif_mask=self.diffusion_mask.squeeze().to(self.device),
+                                cyclic_reses=self.cyclic_reses)   
 
             if self.symmetry is not None and self.inf_conf.symmetric_self_cond:
                 px0 = self.symmetrise_prev_pred(px0=px0,seq_in=seq_in, alpha=alpha)[:,:,:3]
