@@ -98,7 +98,7 @@ def rbf(D):
     RBF = torch.exp(-((D_expand - D_mu) / D_sigma)**2)
     return RBF
 
-def get_seqsep(idx):
+def get_seqsep(idx, cyclic=None):
     '''
     Input:
         - idx: residue indices of given sequence (B,L)
