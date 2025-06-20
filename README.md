@@ -471,8 +471,6 @@ Note that the contigs should specify something that is precisely symmetric. Thin
 <img src="./img/rfpeptides_fig1.png" alt="alt text" width="400px" align="right"/>
 We have recently published the RFpeptides protocol for using RFdiffusion to design macrocyclic peptides that bind target proteins with atomic accuracy (Rettie, Juergens, Adebomi, et al., 2025). In this section we briefly outline how to run this inference protocol. We have added two examples for running macrocycle design with the RFpeptides protocol. One for monomeric design, and one for binder design.
 
-NOTE: Until the pull request is merged, you can find this code in the branch `rfpeptides`. 
-
 ```
 examples/design_macrocyclic_monomer.sh
 examples/design_macrocyclic_binder.sh
