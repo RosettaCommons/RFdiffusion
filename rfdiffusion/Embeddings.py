@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from opt_einsum import contract as einsum
 import torch.utils.checkpoint as checkpoint
 from rfdiffusion.util import get_tips
-from rfdiffusion.util_module import Dropout, create_custom_forward, rbf, init_lecun_normal
+from rfdiffusion.util_module import Dropout, create_custom_forward, rbf, init_lecun_normal, find_breaks
 from rfdiffusion.Attention_module import Attention, FeedForwardLayer, AttentionWithBias
 from rfdiffusion.Track_module import PairStr2Pair
 import math
@@ -21,10 +21,34 @@ class PositionalEncoding2D(nn.Module):
         self.emb = nn.Embedding(self.nbin, d_model)
         self.drop = nn.Dropout(p_drop)
 
-    def forward(self, x, idx):
+    def forward(self, x, idx, cyclize=None):
         bins = torch.arange(self.minpos, self.maxpos, device=x.device)
         seqsep = idx[:,None,:] - idx[:,:,None] # (B, L, L)
         #
+
+
+        # adding support for multi-chain cyclic
+        # find chain breaks and label chain ids
+        breaks = find_breaks(idx.squeeze().cpu().numpy(), thresh=35)  # NOTE: Hard coded threshold for defining chain breaks here
+                                                                      #       Typical jump for chainbreaks is +200
+                                                                      #       Assumes monotonically increasing absolute IDX
+
+        chainids = np.zeros_like(idx.squeeze().cpu().numpy())
+        for i, b in enumerate(breaks):
+            chainids[b:] = i+1
+        chainids = torch.from_numpy(chainids).to(device=idx.device)
+
+        # cyclic peptide
+        if cyclize is not None:
+            for chid in torch.unique(chainids):
+                is_chid = chainids==chid
+                cur_cyclize = cyclize*is_chid
+                cur_mask = cur_cyclize[:,None]*cur_cyclize[None,:] # (L,L)
+                cur_ncyc = torch.sum(cur_cyclize)
+
+                seqsep[:,cur_mask*(seqsep[0]>cur_ncyc//2)] -= cur_ncyc
+                seqsep[:,cur_mask*(seqsep[0]<-cur_ncyc//2)] += cur_ncyc
+
         ib = torch.bucketize(seqsep, bins).long() # (B, L, L)
         emb = self.emb(ib) #(B, L, L, d_model)
         x = x + emb # add relative positional encoding
@@ -56,7 +80,7 @@ class MSA_emb(nn.Module):
 
         nn.init.zeros_(self.emb.bias)
 
-    def forward(self, msa, seq, idx):
+    def forward(self, msa, seq, idx, cyclize):
         # Inputs:
         #   - msa: Input MSA (B, N, L, d_init)
         #   - seq: Input Sequence (B, L)
@@ -82,7 +106,7 @@ class MSA_emb(nn.Module):
         right = (seq @ self.emb_right.weight)[:,:,None] # (B, L, 1, d_pair)
 
         pair = left + right # (B, L, L, d_pair)
-        pair = self.pos(pair, idx) # add relative position
+        pair = self.pos(pair, idx, cyclize) # add relative position
 
         # state embedding
         # Sergey's one hot trick

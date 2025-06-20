@@ -21,6 +21,8 @@ inference:
   trb_save_ckpt_path: null
   schedule_directory_path: null
   model_directory_path: null
+  cyclic: False 
+  cyc_chains: 'a'
 
 contigmap:
   contigs: null

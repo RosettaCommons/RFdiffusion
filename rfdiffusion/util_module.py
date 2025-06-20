@@ -7,6 +7,13 @@ import copy
 import dgl
 from rfdiffusion.util import base_indices, RTs_by_torsion, xyzs_in_base_frame, rigid_from_3_points
 
+
+def find_breaks(ix, thresh=35):
+    # finds positions in ix where the jump is greater than 100
+    breaks = np.where(np.diff(ix) > thresh)[0]
+    return np.array(breaks)+1
+
+
 def init_lecun_normal(module):
     def truncated_normal(uniform, mu=0.0, sigma=1.0, a=-2, b=2):
         normal = torch.distributions.normal.Normal(0, 1)
@@ -104,6 +111,25 @@ def get_seqsep(idx):
     neigh = torch.abs(seqsep)
     neigh[neigh > 1] = 0.0 # if bonded -- 1.0 / else 0.0
     neigh = sign * neigh
+
+    # add cyclic edges
+    breaks = find_breaks(idx.squeeze().cpu().numpy())
+    chainids = np.zeros_like(idx.squeeze().cpu().numpy())
+    for i, b in enumerate(breaks):
+        chainids[b:] = i+1
+    chainids = torch.from_numpy(chainids).to(device=idx.device)
+
+    # add cyclic edges with multiple chains
+    if (cyclic is not None):
+        for chid in torch.unique(chainids):
+            is_chid = chainids==chid
+            cur_cyclic = cyclic*is_chid
+            cur_cres = cur_cyclic.nonzero()
+
+            if cur_cyclic.sum()>=2:
+                neigh[:,cur_cres[-1],cur_cres[0]] = 1
+                neigh[:,cur_cres[0],cur_cres[-1]] = -1
+
     return neigh.unsqueeze(-1)
 
 def make_full_graph(xyz, pair, idx, top_k=64, kmin=9):
