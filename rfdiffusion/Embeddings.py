@@ -8,6 +8,7 @@ from rfdiffusion.util_module import Dropout, create_custom_forward, rbf, init_le
 from rfdiffusion.Attention_module import Attention, FeedForwardLayer, AttentionWithBias
 from rfdiffusion.Track_module import PairStr2Pair
 import math
+import numpy as np 
 
 # Module contains classes and functions to generate initial embeddings
 
