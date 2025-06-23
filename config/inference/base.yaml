@@ -140,3 +140,8 @@ scaffoldguided:
   target_adj: null
   mask_loops: True
   contig_crop: null
+
+hydra:
+  output_subdir: null
+  job:
+    chdir: False
