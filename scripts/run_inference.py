@@ -119,6 +119,8 @@ def main(conf: HydraConfig) -> None:
         plddt_stack = torch.stack(plddt_stack)
 
         # Save outputs
+        if os.path.dirname(out_prefix) == "":
+            out_prefix = "./" + out_prefix
         os.makedirs(os.path.dirname(out_prefix), exist_ok=True)
         final_seq = seq_stack[-1]
 
