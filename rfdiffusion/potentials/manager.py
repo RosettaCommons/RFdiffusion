@@ -1,3 +1,4 @@
+import sys
 import torch
 from rfdiffusion.potentials import potentials as potentials
 import numpy as np 
@@ -69,6 +70,8 @@ def calc_nchains(symbol, components=1):
         raise NotImplementedError()
     elif S.startswith('t'):
         return 12*components
+    elif S.startswith('i'):
+        return 60*components
     else:
         raise RuntimeError('Unknown symmetry symbol ',S)
 
@@ -88,11 +91,13 @@ class PotentialManager:
                  inference_config,
                  hotspot_0idx,
                  binderlen,
+                 chain_lengths=None
                  ):
 
         self.potentials_config = potentials_config
         self.ppi_config        = ppi_config
         self.inference_config  = inference_config
+        self.chain_lengths     = chain_lengths
 
         self.guide_scale = potentials_config.guide_scale
         self.guide_decay = potentials_config.guide_decay
@@ -132,10 +137,12 @@ class PotentialManager:
         '''
 
         setting_dict = {entry.split(':')[0]:entry.split(':')[1] for entry in potstr.split(',')}
-
+        
         for key in setting_dict:
-            if not key == 'type': setting_dict[key] = float(setting_dict[key])
-
+            keep_keys = ['type', 'chains', 'interactions']
+            if not key in keep_keys: 
+                setting_dict[key] = float(setting_dict[key])
+            
         return setting_dict
 
     def initialize_all_potentials(self, setting_list):
@@ -162,6 +169,13 @@ class PotentialManager:
                 contact_matrix = make_contact_matrix(**contact_kwargs)
                 kwargs.update({'contact_matrix':contact_matrix})
 
+            
+            # hetero oligomer potential args
+            elif potential_dict['type'] == 'hetero_olig':
+                chains = kwargs.pop('chains')
+                interactions = kwargs.pop('interactions')
+                chain_lengths = self.chain_lengths
+                kwargs.update({'chains': chains, 'interactions': interactions, 'chain_lengths': chain_lengths})
 
             to_apply.append(potentials.implemented_potentials[potential_dict['type']](**kwargs))
 
@@ -171,7 +185,6 @@ class PotentialManager:
         '''
             This is the money call. Take the current sequence and structure information and get the sum of all of the potentials that are being used
         '''
-
         potential_list = [potential.compute(xyz) for potential in self.potentials_to_apply]
         potential_stack = torch.stack(potential_list, dim=0)
 
@@ -196,7 +209,8 @@ class PotentialManager:
                 # Linear interpolation with y2: 0, y1: guide_scale, x2: 0, x1: T, x: t
                 'linear'  : lambda t: t/self.T * self.guide_scale,
                 'quadratic' : lambda t: t**2/self.T**2 * self.guide_scale,
-                'cubic' : lambda t: t**3/self.T**3 * self.guide_scale
+                'cubic' : lambda t: t**3/self.T**3 * self.guide_scale,
+                'sqrt': lambda t: t**0.5/self.T**0.5 * self.guide_scale,
         }
         
         if self.guide_decay not in implemented_decay_types:

@@ -220,6 +220,27 @@ class monomer_contacts(Potential):
         return self.weight * ncontacts.sum()
 
 
+class loop_contacts(Potential):
+
+    def __init__(self, weight=0.01, ideal_dist_Ca=7, res1=27, res2=39):
+        
+        self.weight = weight
+        self.ideal_dist_Ca = ideal_dist_Ca
+        self.res1 = res1
+        self.res2 = res2
+
+    def compute(self, xyz):
+        
+        Ca_1 = xyz[self.res1,1]
+        Ca_2 = xyz[self.res2,1]
+        dgram = torch.cdist(Ca_1[None,None],Ca_2[None,None], p=2)
+        dgram.squeeze(0).squeeze(0)
+        dist = (dgram - self.ideal_dist_Ca)**2
+        print('Ca dist:', dist)
+
+        return -self.weight * dist
+
+
 class olig_contacts(Potential):
     """
     Applies PV's num contacts potential within/between chains in symmetric oligomers 
@@ -304,7 +325,141 @@ class olig_contacts(Potential):
                     all_contacts += ncontacts.sum() * self.contact_matrix[i,j] * scalar 
 
         return all_contacts 
-                    
+
+          
+class hetero_olig(Potential):
+    """
+    Applies PV's num contacts potential within/between chains in hetero-oligomers
+
+    Author: MH&NZR
+    """
+
+    def __init__(self,
+                 chains,
+                 interactions,
+                 chain_lengths,
+                 weight_intra=1,
+                 weight_inter=1,
+                 r_0=8, d_0=2):
+        """
+        Parameters:
+            chains (list, required): List of chain labels, e.g., ['A', 'B', 'C', 'D']
+            interactions (list, required): List of interaction specifications, e.g., ['ACD', 'ACD-B']
+            weight_intra (int/float, optional): Scaling/weighting factor for intra-chain interactions
+            weight_inter (int/float, optional): Scaling/weighting factor for inter-chain interactions
+            r_0 (int/float, optional): Distance scaling parameter
+            d_0 (int/float, optional): Distance offset parameter
+        """
+        chains = chains.replace('[', '').replace(']', '').split(';')
+        interactions = interactions.replace('[', '').replace(']', '').split(';')
+        self.chain_lengths = chain_lengths
+        print('chain_lengths', self.chain_lengths)
+        
+        # Generate contact matrix based on chains and interactions
+        self.contact_matrix = self.create_contact_matrix(chains, interactions)
+        self.weight_intra = weight_intra
+        self.weight_inter = weight_inter
+        self.r_0 = r_0
+        self.d_0 = d_0
+        print('contact_matrix', self.contact_matrix)
+        # Check that the contact matrix only contains valid entries
+        assert all([i in [-1, 0, 1] for i in self.contact_matrix.flatten()]), 'Contact matrix must contain only 0, 1, or -1 in entries'
+        # Assert the matrix is square
+        shape = self.contact_matrix.shape
+        assert len(shape) == 2
+        assert shape[0] == shape[1]
+
+        self.nchain = shape[0]
+
+    def create_contact_matrix(self, chains, interactions):
+        """
+        Creates a contact matrix based on specified chain interactions.
+
+        Parameters:
+            chains (list): List of chain labels (e.g., ['A', 'B', 'C', 'D']).
+            interactions (list): List of interaction specifications (e.g., ['ACD', 'ACD-B']).
+
+        Returns:
+            np.array: Contact matrix representing the interactions.
+        """
+        n_chains = len(chains)
+        contact_matrix = np.zeros((n_chains, n_chains))
+
+        # Create a mapping from chain labels to indices
+        chain_to_index = {chain: i for i, chain in enumerate(chains)}
+
+        for interaction in interactions:
+            if '-' in interaction:
+                # Handle interactions of the form "ACD-B"
+                attract_part, repel_part = interaction.split('-')
+                for i in range(len(attract_part) - 1):
+                    chain1 = attract_part[i]
+                    chain2 = attract_part[i + 1]
+                    idx1 = chain_to_index[chain1]
+                    idx2 = chain_to_index[chain2]
+                    contact_matrix[idx1, idx2] = 1
+                    contact_matrix[idx2, idx1] = 1
+
+                for chain in repel_part:
+                    for attract_chain in attract_part:
+                        idx_attract = chain_to_index[attract_chain]
+                        idx_repel = chain_to_index[chain]
+                        contact_matrix[idx_attract, idx_repel] = -1
+                        contact_matrix[idx_repel, idx_attract] = -1
+
+            else:
+                # Handle interactions of the form "ACD"
+                for i in range(len(interaction) - 1):
+                    chain1 = interaction[i]
+                    chain2 = interaction[i + 1]
+                    idx1 = chain_to_index[chain1]
+                    idx2 = chain_to_index[chain2]
+                    contact_matrix[idx1, idx2] = 1
+                    contact_matrix[idx2, idx1] = 1
+
+        return contact_matrix
+
+    def _get_idx(self, i, L):
+        """
+        Returns the zero-indexed indices of the residues in chain i.
+        """
+        Lchain = self.chain_lengths[i]
+        offset = sum(self.chain_lengths[:i])
+        return offset + torch.arange(Lchain)
+
+    def compute(self, xyz):
+        """
+        Iterate through the contact matrix, compute contact potentials between chains that need it.
+        """
+        L = xyz.shape[0]
+        all_contacts = 0
+
+        for i in range(self.nchain):
+            for j in range(self.nchain):
+                # Disregard zeros in contact matrix
+                if self.contact_matrix[i, j] != 0:
+                    # Get the indices for these two chains
+                    idx_i = self._get_idx(i, L)
+                    idx_j = self._get_idx(j, L)
+
+                    Ca_i = xyz[idx_i, 1]  # slice out coordinates for this chain
+                    Ca_j = xyz[idx_j, 1]  # slice out coordinates for that chain
+                    dgram = torch.cdist(Ca_i[None, ...].contiguous(), Ca_j[None, ...].contiguous(), p=2)  # [1, Lb, Lb]
+
+                    divide_by_r_0 = (dgram - self.d_0) / self.r_0
+                    numerator = torch.pow(divide_by_r_0, 6)
+                    denominator = torch.pow(divide_by_r_0, 12)
+                    ncontacts = (1 - numerator) / (1 - denominator)
+
+                    # Weight intra-chain interactions separately
+                    scalar = self.weight_intra if i == j else self.weight_inter
+
+                    # Calculate contacts, apply scalar, and sum up
+                    all_contacts += ncontacts.sum() * self.contact_matrix[i, j] * scalar
+
+        return all_contacts
+
+
 def get_damped_lj(r_min, r_lin,p1=6,p2=12):
     
     y_at_r_lin = lj(r_lin, r_min, p1, p2)
@@ -454,6 +609,182 @@ class substrate_contacts(Potential):
             self.motif_frame = xyz[rand_idx[0],:4]
             self.motif_mapping = [(rand_idx, i) for i in range(4)]
 
+
+class binder_RMSD(Potential):
+    """ Potential to reduce RMSD of binder towards specific shape. """
+
+    def __init__(self, weight=1, ref_pdb='/nas/longleaf/home/bkuhlman/snap/fold_conditioning/backbone_305.pdb', basis=0, squared=True, roi= list(range(0,180))):
+        self.weight = weight
+        if basis == 0:
+            self.basis = 'ca'
+        elif basis == 1:
+            self.basis = 'bb'
+        else:
+            raise ValueError(f'Unrecognized basis mode: {basis}. Use either 0 for "ca" or 1 for "bb"')
+        self.squared = squared
+        self.roi = roi
+
+        # Parse the reference pdb and get appropriate coordinates.
+        from rfdiffusion.inference.utils import parse_pdb
+        ref_pdb = parse_pdb(ref_pdb)
+        self.ref_xyz = torch.from_numpy(self.get_basis_xyz(ref_pdb['xyz'], self.basis, roi))
+        self.ref_xyz = self.ref_xyz - self.ref_xyz.mean(0)        
+
+    def compute(self, xyz):
+        # Grab only the binder residues.
+        binder_xyz = xyz
+
+        # Get the atoms used for RMSD calculation.
+        binder_xyz = self.get_basis_xyz(binder_xyz, self.basis, self.roi) # [num_atom, 3]
+
+        # Compute alignment.
+        R = self._calc_kabsch_R(binder_xyz, self.ref_xyz)
+
+        # Compute MSD after centering binder_xyz and rotating ref_xyz.
+        binder_xyz = binder_xyz - binder_xyz.mean(0)
+        ref_xyz_aligned = self.ref_xyz @ R
+        
+        msd = torch.mean(torch.square(binder_xyz - ref_xyz_aligned).sum(-1))
+        print('RMSD:', torch.sqrt(msd))
+        
+        # Return either MSD or RMSD
+        if self.squared:
+            return -1 * self.weight * msd
+        else:
+            return -1 * self.weight * torch.sqrt(msd)
+
+    def get_basis_xyz(self, xyz, basis, roi):
+        """ Gets the coordinates to be used in the RMSD calculation.
+        
+        Args:
+            xyz (torch.tensor, size: [L,27,3] or [L,14,3]): Complete set of coordinates.
+            basis (str, ["ca", "bb"]): Either 'ca' or 'bb', indicating to use only CA atom or all backbone atoms.
+            roi (list(int)): The residues of interest as a list of the index (0-based) of the residues.
+
+        Returns:
+            basis_xyz (torch.tensor, size: [num_atom, 3]): Atomic coordinates of the residues of interest.
+        """
+
+        # Get the roi coordinates.
+        roi_xyz = xyz[roi]
+
+        # Get the appropriate atomic coordinates.
+        if basis == 'ca':
+            roi_xyz = roi_xyz[:, 1]
+        elif basis == 'bb':
+            roi_xyz = roi_xyz[:, :3]
+        else:
+            raise ValueError(f"Unrecognized basis {basis}. Use either 'ca' or 'bb'.")
+        
+        # Reshape and return
+        return roi_xyz.reshape(-1, 3)
+
+    @torch.no_grad()
+    def _calc_kabsch_R(self, xyz1, xyz2):
+        """
+        Calculates optimal rotation matrix for alignment, following the Kabsch algorithm.
+        """
+        # Center coordinates on origin.
+        xyz1 = xyz1 - xyz1.mean(0)
+        xyz2 = xyz2 - xyz2.mean(0)
+
+        # Computate the covariance matrix
+        C = xyz2.T @ xyz1
+
+        # Compute optimal rotation matrix using SVD
+        try:
+            U, S, Vh = torch.linalg.svd(C)
+        except:
+            print('Hit SVD exception.')
+            U, S, Vh = torch.linalg.svd(C + 1e-2 * C.mean() * torch.rand_like(C))
+
+        # Get the sign to ensure right handedness
+        d = torch.ones([3,3])
+        d[:,-1] = torch.sign(torch.linalg.det(U) * torch.linalg.det(Vh))
+
+        # Rotation matrix R
+        R = (d * U) @ Vh
+
+        return R
+
+
+class res_pair_constraints(Potential):
+    """ Potential to force residue pair distances to match a reference pdb """
+
+    def __init__(self, weight=10, ref_pdb='/nas/longleaf/home/bkuhlman/snap/fold_conditioning/backbone_305.pdb', basis=0, squared=True, roi= list(range(0,180))):
+        #self.binderlen = binderlen
+        self.weight = weight
+        if basis == 0:
+            self.basis = 'ca'
+        elif basis == 1:
+            self.basis = 'bb'
+        else:
+            raise ValueError(f'Unrecognized basis mode: {basis}. Use either 0 for "ca" or 1 for "bb"')
+        self.squared = squared
+        self.roi = roi
+
+        # Parse the reference pdb and get appropriate coordinates.
+        from rfdiffusion.inference.utils import parse_pdb
+        ref_pdb = parse_pdb(ref_pdb)
+        self.ref_xyz = torch.from_numpy(self.get_basis_xyz(ref_pdb['xyz'], self.basis, roi))
+        self.dgram_ref = torch.cdist(self.ref_xyz[None, ...].contiguous(),self.ref_xyz[None, ...].contiguous(), p=2)
+        
+    def compute(self, xyz):
+        # Grab only the binder residues.
+        #binder_xyz = xyz[:self.binderlen] # [L_binder, 27, 3]
+        binder_xyz = xyz
+        # Get the atoms used for the distance calculations.
+        binder_xyz = self.get_basis_xyz(binder_xyz, self.basis, self.roi) # [num_atom, 3]
+        dgram_model = torch.cdist(binder_xyz[None, ...].contiguous(),binder_xyz[None, ...].contiguous(), p=2)
+        #dgram_model = torch.cdist(binder_xyz,binder_xyz)
+        dgram_diff = torch.abs(self.dgram_ref - dgram_model)
+        dgram_diff = dgram_diff**1.5
+
+        
+        #print('dgram_model distance',dgram_model[0,0,1])
+        #print('dgram_model',dgram_model)
+        #print('dgram_model_shape',dgram_model.shape)
+        #print('dgram_model other side distance',dgram_model[0,1,0])
+        #print('dgram_model diagonal',dgram_model[0,0,0])
+        #print('dgram_ref distance',self.dgram_ref[0,0,1])
+        #print('dgram_diff distance',dgram_diff[0,0,1])
+
+        mask = torch.ones_like(dgram_diff).triu(diagonal=1).bool()
+        score = dgram_diff[mask].mean()
+        
+        #score = (dgram_diff ** 1.5).sum()
+        #score = dgram_diff.sum()
+        print('distance score:',score)
+
+        return -1 * self.weight * score
+
+    def get_basis_xyz(self, xyz, basis, roi):
+        """ Gets the coordinates to be used in the distance calculations.
+        
+        Args:
+            xyz (torch.tensor, size: [L,27,3] or [L,14,3]): Complete set of coordinates.
+            basis (str, ["ca", "bb"]): Either 'ca' or 'bb', indicating to use only CA atom or all backbone atoms.
+            roi (list(int)): The residues of interest as a list of the index (0-based) of the residues.
+
+        Returns:
+            basis_xyz (torch.tensor, size: [num_atom, 3]): Atomic coordinates of the residues of interest.
+        """
+
+        # Get the roi coordinates.
+        roi_xyz = xyz[roi]
+
+        # Get the appropriate atomic coordinates.
+        if basis == 'ca':
+            roi_xyz = roi_xyz[:, 1]
+        elif basis == 'bb':
+            roi_xyz = roi_xyz[:, :2]
+        else:
+            raise ValueError(f"Unrecognized basis {basis}. Use either 'ca' or 'bb'.")
+        
+        # Reshape and return
+        return roi_xyz.reshape(-1, 3)
+
+
 # Dictionary of types of potentials indexed by name of potential. Used by PotentialManager.
 # If you implement a new potential you must add it to this dictionary for it to be used by
 # the PotentialManager
@@ -464,7 +795,11 @@ implemented_potentials = { 'monomer_ROG':          monomer_ROG,
                            'interface_ncontacts':  interface_ncontacts,
                            'monomer_contacts':     monomer_contacts,
                            'olig_contacts':        olig_contacts,
-                           'substrate_contacts':    substrate_contacts}
+                           'substrate_contacts':    substrate_contacts,
+                           'binder_RMSD':           binder_RMSD,
+                           'loop_contacts':         loop_contacts,
+                           'res_pair_constraints':  res_pair_constraints,
+                           'hetero_olig':           hetero_olig}
 
 require_binderlen      = { 'binder_ROG',
                            'binder_distance_ReLU',
