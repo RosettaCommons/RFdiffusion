@@ -14,6 +14,7 @@ import torch.nn.functional as nn
 from rfdiffusion import util
 from hydra.core.hydra_config import HydraConfig
 import os
+import re
 
 from rfdiffusion.model_input_logger import pickle_function_call
 import sys
@@ -237,7 +238,12 @@ class Sampler:
         Construct contig class describing the protein to be generated
         """
         self._log.info(f'Using contig: {self.contig_conf.contigs}')
-        return ContigMap(target_feats, **self.contig_conf)
+        
+        sym_order = None
+        if self.symmetry:
+            sym_order = self.symmetry.order
+
+        return ContigMap(target_feats, **self.contig_conf, sym_order=sym_order)
 
     def construct_denoiser(self, L, visible):
         """Make length-specific denoiser."""
@@ -250,7 +256,7 @@ class Sampler:
         })
         return iu.Denoise(**denoise_kwargs)
 
-    def sample_init(self, return_forward_trajectory=False):
+    def sample_init(self, return_forward_trajectory=False, translate=False):
         """
         Initial features to start the sampling process.
         
@@ -312,13 +318,33 @@ class Sampler:
         #####################################
         ### Initialise Potentials Manager ###
         #####################################
+        
+        # Figure out chain lengths
+        chain_strs = [ch_contig.split('/') for ch_contig in self.contig_map.sampled_mask]
+        chain_strs = [[re.sub('[A-Z]', '', e) for e in v] for v in chain_strs]
+        chain_lengths = []
+        for cs in chain_strs:
+            chain_len = 0
+            for s in cs:
+                if s == '0':
+                    continue
+                elif '-' in s:
+                    ls = s.split('-')
+                    if ls[0] == ls[1]:
+                        chain_len += int(ls[0])
+                    else:
+                        chain_len += int(ls[1]) - int(ls[0]) + 1
+                else:
+                    chain_len += 1
+            chain_lengths.append(chain_len)
 
         self.potential_manager = PotentialManager(self.potential_conf,
                                                   self.ppi_conf,
                                                   self.diffuser_conf,
                                                   self.inf_conf,
                                                   self.hotspot_0idx,
-                                                  self.binderlen)
+                                                  self.binderlen,
+                                                  chain_lengths)
 
         ###################################
         ### Initialize other attributes ###
@@ -347,6 +373,18 @@ class Sampler:
             # Partially diffusing from a known structure
             xyz_mapped=xyz_27
             atom_mask_mapped = mask_27
+            
+            if translate:
+                #get coordinates for residues that being diffused from all coordinates and translate them in random direction
+                xyz_translate = xyz_mapped[[not x for x in self.diffusion_mask.squeeze()]]
+                
+                translation = np.random.rand(3)*10
+                self._log.info(f'Translation: {translation}')
+                xyz_translate = xyz_translate + translation
+        
+                xyz_mapped[[not x for x in self.diffusion_mask.squeeze()]] = xyz_translate.float()
+                
+                
         else:
             # Fully diffusing from points initialised at the origin
             # adjust size of input xt according to residue map
@@ -577,8 +615,8 @@ class Sampler:
             px0: (L,14,3) The model's prediction of x0.
             x_t_1: (L,14,3) The updated positions of the next step.
             seq_t_1: (L,22) The updated sequence of the next step.
-            tors_t_1: (L, ?) The updated torsion angles of the next  step.
-            plddt: (L, 1) Predicted lDDT of x0.
+            tors_t_1: (L, ?) The updated torsion angles of the next step.
+            plddt: (L, 1) Predicted lDDT of x0. 
         '''
         msa_masked, msa_full, seq_in, xt_in, idx_pdb, t1d, t2d, xyz_t, alpha_t = self._preprocess(
             seq_init, x_t, t)

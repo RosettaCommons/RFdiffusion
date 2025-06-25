@@ -29,7 +29,8 @@ class ContigMap:
         provide_seq=None,
         inpaint_str_strand=None,
         inpaint_str_helix=None,
-        inpaint_str_loop=None
+        inpaint_str_loop=None,
+        sym_order=None,
     ):
         # sanity checks
         if contigs is None and ref_idx is None:
@@ -64,6 +65,7 @@ class ContigMap:
         self.inpaint_str_tensor = inpaint_str_tensor
         self.parsed_pdb = parsed_pdb
         self.topo = topo
+        self.sym_order = sym_order
         if ref_idx is None:
             # using default contig generation, which outputs in rosetta-like format
             self.contigs = contigs
@@ -123,6 +125,8 @@ class ContigMap:
 
         # Handle provide seq. This is zero-indexed, and used only for partial diffusion
         if provide_seq is not None:
+            if type(provide_seq) == str:
+                provide_seq = provide_seq.split(",")
             for i in provide_seq:
                 if "-" in i:
                     self.inpaint_seq[
@@ -173,6 +177,35 @@ class ContigMap:
         while length_compatible is False:
             inpaint_chains = 0
             contig_list = self.contigs[0].strip().split()
+            if self.sym_order:
+                assert len(contig_list) in [1, self.sym_order], "Number of chains in contig must be 1 or match symmetry order"
+
+                if len(contig_list) == self.sym_order:
+                    # Verify that all contigs are the same
+                    ref_contigs = contig_list.copy()
+                    for i in range(len(ref_contigs)):
+                        subcons = ref_contigs[i].split("/")
+                        for j in range(len(subcons)):
+                            if subcons[j][0].isalpha():
+                                if "-" in subcons[j]:
+                                    subcons[j] = str(
+                                        int(subcons[j][1:].split("-")[1])
+                                        - int(subcons[j][1:].split("-")[0])
+                                        + 1
+                                    )
+                                else:
+                                    subcons[j] = "1"
+                        ref_contigs[i] = "/".join(subcons)
+                    for i in range(1, len(ref_contigs)):
+                        assert ref_contigs[i] == ref_contigs[0], "All contigs must be the same structure when using multiple chains and symmetry"
+                    og_contigs = contig_list.copy()
+                    contig_list = [contig_list[0]]
+                    check_symmetry = False
+                else:
+                    check_symmetry = True
+            else:
+                check_symmetry = False
+
             sampled_mask = []
             sampled_mask_length = 0
             # allow receptor chain to be last in contig string
@@ -225,9 +258,37 @@ class ContigMap:
                     length_compatible = True
             else:
                 length_compatible = True
+
+            # check if length works with symmetry
+            if length_compatible and check_symmetry:
+                if sampled_mask_length % self.sym_order != 0:
+                    length_compatible = False
+
             count += 1
             if count == 100000:  # contig string incompatible with this length
-                sys.exit("Contig string incompatible with --length range")
+                if self.length is not None and self.sym_order is not None:
+                    sys.exit(
+                        "Contig string incompatible with length range and symmetry order"
+                    )
+                elif self.length is not None:
+                    sys.exit("Contig string incompatible with --length range")
+                elif self.sym_order is not None:
+                    sys.exit("Contig string incompatible with symmetry order")
+                else:
+                    sys.exit("Unable to generate combatible contig")
+                
+        # Rebuild values when using symmetry and multiple chains
+        if self.sym_order is not None and check_symmetry is False:
+            sampled_mask = sampled_mask * self.sym_order
+            sampled_mask_length = sampled_mask_length * self.sym_order
+            inpaint_chains = inpaint_chains * self.sym_order
+            for i, (ref_contig, sampled_contig) in enumerate(zip(og_contigs, sampled_mask)):
+                ref_subcons = ref_contig.split("/")
+                sampled_subcons = sampled_contig.split("/")
+                for j in range(len(ref_subcons)):
+                    if ref_subcons[j][0].isalpha():
+                        sampled_subcons[j] = ref_subcons[j]
+                sampled_mask[i] = "/".join(sampled_subcons)
         return sampled_mask, sampled_mask_length, inpaint_chains
 
     def expand_sampled_mask(self):
