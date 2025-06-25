@@ -270,9 +270,12 @@ def cross_product_matrix(u):
 
 # writepdb
 def writepdb(
-    filename, atoms, seq, binderlen=None, idx_pdb=None, bfacts=None, chain_idx=None
+    filename, atoms, seq, binderlen=None, idx_pdb=None, bfacts=None, chain_idx=None, design_run=False
 ):
-    f = open(filename, "w")
+    if not design_run:
+        f = open(filename, "w")
+    else:
+        pdb_str = ""
     ctr = 1
     scpu = seq.cpu().squeeze()
     atomscpu = atoms.cpu().squeeze()
@@ -294,22 +297,40 @@ def writepdb(
         else:
             chain = chain_idx[i]
         if len(atomscpu.shape) == 2:
-            f.write(
-                "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
-                % (
-                    "ATOM",
-                    ctr,
-                    " CA ",
-                    num2aa[s],
-                    chain,
-                    idx_pdb[i],
-                    atomscpu[i, 0],
-                    atomscpu[i, 1],
-                    atomscpu[i, 2],
-                    1.0,
-                    Bfacts[i],
+            if not design_run:
+                f.write(
+                    "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
+                    % (
+                        "ATOM",
+                        ctr,
+                        " CA ",
+                        num2aa[s],
+                        chain,
+                        idx_pdb[i],
+                        atomscpu[i, 0],
+                        atomscpu[i, 1],
+                        atomscpu[i, 2],
+                        1.0,
+                        Bfacts[i],
+                    )
                 )
-            )
+            else:
+                pdb_str += (
+                    "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
+                    % (
+                        "ATOM",
+                        ctr,
+                        " CA ",
+                        num2aa[s],
+                        chain,
+                        idx_pdb[i],
+                        atomscpu[i, 0],
+                        atomscpu[i, 1],
+                        atomscpu[i, 2],
+                        1.0,
+                        Bfacts[i],
+                    )
+                )
             ctr += 1
         elif atomscpu.shape[1] == 3:
             for j, atm_j in enumerate([" N  ", " CA ", " C  "]):
@@ -332,22 +353,40 @@ def writepdb(
                 ctr += 1
         elif atomscpu.shape[1] == 4:
             for j, atm_j in enumerate([" N  ", " CA ", " C  ", " O  "]):
-                f.write(
-                    "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
-                    % (
-                        "ATOM",
-                        ctr,
-                        atm_j,
-                        num2aa[s],
-                        chain,
-                        idx_pdb[i],
-                        atomscpu[i, j, 0],
-                        atomscpu[i, j, 1],
-                        atomscpu[i, j, 2],
-                        1.0,
-                        Bfacts[i],
+                if not design_run:
+                    f.write(
+                        "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
+                        % (
+                            "ATOM",
+                            ctr,
+                            atm_j,
+                            num2aa[s],
+                            chain,
+                            idx_pdb[i],
+                            atomscpu[i, j, 0],
+                            atomscpu[i, j, 1],
+                            atomscpu[i, j, 2],
+                            1.0,
+                            Bfacts[i],
+                        )
                     )
-                )
+                else:
+                    pdb_str += (
+                        "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
+                        % (
+                            "ATOM",
+                            ctr,
+                            atm_j,
+                            num2aa[s],
+                            chain,
+                            idx_pdb[i],
+                            atomscpu[i, j, 0],
+                            atomscpu[i, j, 1],
+                            atomscpu[i, j, 2],
+                            1.0,
+                            Bfacts[i],
+                        )
+                    )
                 ctr += 1
 
         else:
@@ -395,24 +434,43 @@ def writepdb(
                 if (
                     j < natoms and atm_j is not None
                 ):  # and not torch.isnan(atomscpu[i,j,:]).any()):
-                    f.write(
-                        "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
-                        % (
-                            "ATOM",
-                            ctr,
-                            atm_j,
-                            num2aa[s],
-                            chain,
-                            idx_pdb[i],
-                            atomscpu[i, j, 0],
-                            atomscpu[i, j, 1],
-                            atomscpu[i, j, 2],
-                            1.0,
-                            Bfacts[i],
+                    if not design_run:
+                        f.write(
+                            "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
+                            % (
+                                "ATOM",
+                                ctr,
+                                atm_j,
+                                num2aa[s],
+                                chain,
+                                idx_pdb[i],
+                                atomscpu[i, j, 0],
+                                atomscpu[i, j, 1],
+                                atomscpu[i, j, 2],
+                                1.0,
+                                Bfacts[i],
+                            )
                         )
-                    )
+                    else:
+                        pdb_str += (
+                            "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
+                            % (
+                                "ATOM",
+                                ctr,
+                                atm_j,
+                                num2aa[s],
+                                chain,
+                                idx_pdb[i],
+                                atomscpu[i, j, 0],
+                                atomscpu[i, j, 1],
+                                atomscpu[i, j, 2],
+                                1.0,
+                                Bfacts[i],
+                            )
+                        )
                     ctr += 1
-
+    if design_run:
+        return pdb_str
 
 # resolve tip atom indices
 tip_indices = torch.full((22,), 0)
@@ -666,13 +724,16 @@ def writepdb_multi(
     backbone_only=False,
     chain_ids=None,
     use_hydrogens=True,
+    design_run=False,
 ):
     """
     Function for writing multiple structural states of the same sequence into a single
     pdb file.
     """
-
-    f = open(filename, "w")
+    if not design_run:
+        f = open(filename, "w")
+    else:
+        pdb_str = ""
 
     if seq_stack.ndim != 2:
         T = atoms_stack.shape[0]
@@ -694,25 +755,47 @@ def writepdb_multi(
                 chain_id = "A"
                 if chain_ids is not None:
                     chain_id = chain_ids[i]
-                f.write(
-                    "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
-                    % (
-                        "ATOM",
-                        ctr,
-                        atm_j,
-                        num2aa[s],
-                        chain_id,
-                        i + 1,
-                        atomscpu[i, j, 0],
-                        atomscpu[i, j, 1],
-                        atomscpu[i, j, 2],
-                        1.0,
-                        Bfacts[i],
+                if not design_run:
+                    f.write(
+                        "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
+                        % (
+                            "ATOM",
+                            ctr,
+                            atm_j,
+                            num2aa[s],
+                            chain_id,
+                            i + 1,
+                            atomscpu[i, j, 0],
+                            atomscpu[i, j, 1],
+                            atomscpu[i, j, 2],
+                            1.0,
+                            Bfacts[i],
+                        )
                     )
-                )
+                else:
+                    pdb_str += (
+                        "%-6s%5s %4s %3s %s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f\n"
+                        % (
+                            "ATOM",
+                            ctr,
+                            atm_j,
+                            num2aa[s],
+                            chain_id,
+                            i + 1,
+                            atomscpu[i, j, 0],
+                            atomscpu[i, j, 1],
+                            atomscpu[i, j, 2],
+                            1.0,
+                            Bfacts[i],
+                        )
+                    )
                 ctr += 1
-
-        f.write("ENDMDL\n")
+        if not design_run:
+            f.write("ENDMDL\n")
+        else:
+            pdb_str += "ENDMDL\n"
+    if design_run:
+        return pdb_str
 
 def calc_rmsd(xyz1, xyz2, eps=1e-6):
     """
