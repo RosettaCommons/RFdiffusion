@@ -21,6 +21,9 @@ RFdiffusion is an open source method for structure generation, with or without c
 - Binder design
 - Design diversification ("partial diffusion", sampling around a design)
 
+## [Documentation](https://sites.google.com/omsf.io/rfdiffusion/overview)
+View the RFdiffusion documentation resource maintained by Rosetta Commons [here](https://sites.google.com/omsf.io/rfdiffusion/overview). 
+
 ----
 
 # Table of contents
