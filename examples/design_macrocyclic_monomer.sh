@@ -7,7 +7,7 @@ pdb='./input_pdbs/7zkr_GABARAP.pdb'
 
 num_designs=10
 script="../scripts/run_inference.py"
-$script --config-name base \
+python $script --config-name base \
 inference.output_prefix=$prefix \
 inference.num_designs=$num_designs \
 'contigmap.contigs=[12-18]' \
