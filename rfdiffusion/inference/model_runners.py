@@ -77,14 +77,14 @@ class Sampler:
                 if conf.contigmap.provide_seq is not None:
                     # this is only used for partial diffusion
                     assert conf.diffuser.partial_T is not None, "The provide_seq input is specifically for partial diffusion"
-                if conf.scaffoldguided.scaffoldguided:
+                if conf.scaffoldguided.scaffoldguided_enable:
                     self.ckpt_path = f'{model_directory}/InpaintSeq_Fold_ckpt.pt'
                 else:
                     self.ckpt_path = f'{model_directory}/InpaintSeq_ckpt.pt'
-            elif conf.ppi.hotspot_res is not None and conf.scaffoldguided.scaffoldguided is False:
+            elif conf.ppi.hotspot_res is not None and conf.scaffoldguided.scaffoldguided_enable is False:
                 # use complex trained model
                 self.ckpt_path = f'{model_directory}/Complex_base_ckpt.pt'
-            elif conf.scaffoldguided.scaffoldguided is True:
+            elif conf.scaffoldguided.scaffoldguided_enable is True:
                 # use complex and secondary structure-guided model
                 self.ckpt_path = f'{model_directory}/Complex_Fold_base_ckpt.pt'
             else:
@@ -279,7 +279,6 @@ class Sampler:
         self.mask_seq = torch.from_numpy(self.contig_map.inpaint_seq)[None,:]
         self.mask_str = torch.from_numpy(self.contig_map.inpaint_str)[None,:]
         self.binderlen =  len(self.contig_map.inpaint)    
-        
         #######################################
         ### Resolve cyclic peptide indicies ###
         #######################################
@@ -301,7 +300,7 @@ class Sampler:
                 self.cyclic_reses = is_cyclized
         else:
             self.cyclic_reses = torch.zeros_like(self.mask_str).bool().to(self.device).squeeze()
-
+        
         ####################
         ### Get Hotspots ###
         ####################
@@ -681,7 +680,6 @@ class SelfConditioning(Sampler):
         ####################
         ### Forward Pass ###
         ####################
-
         with torch.no_grad():
             msa_prev, pair_prev, px0, state_prev, alpha, logits, plddt = self.model(msa_masked,
                                 msa_full,
@@ -771,7 +769,7 @@ class ScaffoldedSampler(SelfConditioning):
         else:
             # initialize BlockAdjacency sampling class
             assert all(x is None for x in (conf.contigmap.inpaint_str_helix, conf.contigmap.inpaint_str_strand, conf.contigmap.inpaint_str_loop)), "can't provide scaffold_dir if you're also specifying per-residue ss"
-            self.blockadjacency = iu.BlockAdjacency(conf.scaffoldguided, conf.inference.num_designs)
+            self.blockadjacency = iu.BlockAdjacency(conf, conf.inference.num_designs)
 
 
         #################################################
@@ -945,6 +943,27 @@ class ScaffoldedSampler(SelfConditioning):
 
 
         xT = torch.clone(fa_stack[-1].squeeze()[:,:14,:])
+
+        ################################
+        ### Add to Cyclic_reses init ###
+        ################################
+
+        if self._conf.inference.cyclic:
+            if self._conf.inference.cyc_chains is None:
+                self.cyclic_reses = ~self.mask_str.to(self.device).squeeze()
+            else:
+                assert isinstance(self._conf.inference.cyc_chains, str), 'cyc_chains arg must be string'
+                cyc_chains = self._conf.inference.cyc_chains
+                cyc_chains = [i.upper() for i in cyc_chains]
+                hal_idx = self.contig_map.hal
+                is_cyclized = torch.zeros_like(self.mask_str).bool().to(self.device).squeeze()
+                for ch in cyc_chains:
+                    ch_mask = torch.tensor([idx[0] == ch for idx in hal_idx]).bool()
+                    is_cyclized[ch_mask] = True
+                self.cyclic_reses = is_cyclized
+        else:
+            self.cyclic_reses = torch.zeros_like(self.mask_str).bool().to(self.device).squeeze()
+
         return xT, seq_T
     
     def _preprocess(self, seq, xyz_t, t):
