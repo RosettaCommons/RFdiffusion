@@ -21,6 +21,9 @@ RFdiffusion is an open source method for structure generation, with or without c
 - Binder design
 - Design diversification ("partial diffusion", sampling around a design)
 
+## [Documentation](https://sites.google.com/omsf.io/rfdiffusion/overview)
+View the RFdiffusion documentation resource maintained by Rosetta Commons [here](https://sites.google.com/omsf.io/rfdiffusion/overview). 
+
 ----
 
 # Table of contents
@@ -54,7 +57,9 @@ RFdiffusion is an open source method for structure generation, with or without c
 
 # Getting started / installation
 
-Thanks to Sergey Ovchinnikov, RFdiffusion is available as a [Google Colab Notebook](https://colab.research.google.com/github/sokrypton/ColabDesign/blob/v1.1.1/rf/examples/diffusion.ipynb) if you would like to run it there!
+Thanks to Sergey Ovchinnikov,many of the features of RFdiffusion are available as a [Google Colab Notebook](https://colab.research.google.com/github/sokrypton/ColabDesign/blob/v1.1.1/rf/examples/diffusion.ipynb) if you would like to run it there!
+
+There is also an official, Rosetta Commons-maintainted Docker image that you can find [here](https://hub.docker.com/r/rosettacommons/rfdiffusion). Thank you to Sergey Lyskov, Ajasja Ljubetic, and Hope Woods for creating this resource. 
 
 We strongly recommend reading this README carefully before getting started with RFdiffusion, and working through some of the examples in the Colab Notebook.
 
