@@ -14,6 +14,7 @@ import torch.nn.functional as nn
 from rfdiffusion import util
 from hydra.core.hydra_config import HydraConfig
 import os
+import string
 
 from rfdiffusion.model_input_logger import pickle_function_call
 import sys
@@ -144,13 +145,14 @@ class Sampler:
             self.symmetry = None
 
         self.allatom = ComputeAllAtomCoords().to(self.device)
-        
+
         if self.inf_conf.input_pdb is None:
             # set default pdb
             script_dir=os.path.dirname(os.path.realpath(__file__))
             self.inf_conf.input_pdb=os.path.join(script_dir, '../../examples/input_pdbs/1qys.pdb')
         self.target_feats = iu.process_target(self.inf_conf.input_pdb, parse_hetatom=True, center=False)
         self.chain_idx = None
+        self.idx_pdb = None
 
         ##############################
         ### Handle Partial Noising ###
@@ -331,8 +333,42 @@ class Sampler:
         contig_map=self.contig_map
 
         self.diffusion_mask = self.mask_str
-        self.chain_idx=['A' if i < self.binderlen else 'B' for i in range(L_mapped)]
-        
+        length_bound = self.contig_map.sampled_mask_length_bound.copy()
+
+        first_res = 0
+        self.chain_idx = []
+        self.idx_pdb = []
+        all_chains = {contig_ref[0] for contig_ref in self.contig_map.ref}
+        available_chains = sorted(list(set(string.ascii_letters) - all_chains))
+
+        # Iterate over each chain
+        for last_res in length_bound:
+            chain_ids = {contig_ref[0] for contig_ref in self.contig_map.ref[first_res: last_res]}
+            # If we are designing this chain, it will have a '-' in the contig map
+            # Renumber this chain from 1
+            if "_" in chain_ids:
+                self.idx_pdb += [idx + 1 for idx in range(last_res - first_res)]
+                chain_ids = chain_ids - {"_"}
+                # If there are no fixed residues that have a chain id, pick the first available letter
+                if not chain_ids:
+                    if not available_chains:
+                        raise ValueError(f"No available chains!  You are trying to design a new chain, and you have "
+                                         f"already used all upper- and lower-case chain ids (up to 52 chains): "
+                                         f"{','.join(all_chains)}.")
+                    chain_id = available_chains[0]
+                    available_chains.remove(chain_id)
+                # Otherwise, use the chain of the fixed (motif) residues
+                else:
+                    assert len(chain_ids) == 1, f"Error: Multiple chain IDs in chain: {chain_ids}"
+                    chain_id = list(chain_ids)[0]
+                self.chain_idx += [chain_id] * (last_res - first_res)
+            # If this is a fixed chain, maintain the chain and residue numbering
+            else:
+                self.idx_pdb += [contig_ref[1] for contig_ref in self.contig_map.ref[first_res: last_res]]
+                assert len(chain_ids) == 1, f"Error: Multiple chain IDs in chain: {chain_ids}"
+                self.chain_idx += [list(chain_ids)[0]] * (last_res - first_res)
+            first_res = last_res
+
         ####################################
         ### Generate initial coordinates ###
         ####################################
