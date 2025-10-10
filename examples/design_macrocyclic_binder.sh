@@ -7,7 +7,7 @@
 ../scripts/run_inference.py \
 --config-name base \
 inference.output_prefix=example_outputs/diffused_binder_cyclic2 \
-inference.num_designs=10 \
+inference.num_designs=2 \
 'contigmap.contigs=[12-18 A3-117/0]' \
 inference.input_pdb=/input_pdbs/7zkr_GABARAP.pdb \
 inference.cyclic=True \

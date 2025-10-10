@@ -11,4 +11,4 @@
 # We generate 10 designs
 # As in the paper (at least for some of the designs we tested), we use the complex-finetuned model
 
-python ../scripts/run_inference.py inference.output_prefix=example_outputs/design_motifscaffolding_with_target inference.input_pdb=input_pdbs/1YCR.pdb 'contigmap.contigs=[A25-109/0 0-70/B17-29/0-70]' contigmap.length=70-120 inference.num_designs=10 inference.ckpt_override_path=../models/Complex_base_ckpt.pt
+python ../scripts/run_inference.py inference.output_prefix=example_outputs/design_motifscaffolding_with_target inference.input_pdb=input_pdbs/1YCR.pdb 'contigmap.contigs=[A25-109/0 0-70/B17-29/0-70]' contigmap.length=70-120 inference.num_designs=2 inference.ckpt_override_path=../models/Complex_base_ckpt.pt
