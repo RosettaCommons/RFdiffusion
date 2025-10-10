@@ -53,7 +53,7 @@ class TestSubmissionCommands(unittest.TestCase):
         for bash_file in sorted( glob.glob(f"{self.out_f}/*.sh"), reverse=False):
             test_name = os.path.basename(bash_file)[:-len('.sh')]
             res, output = execute(f"Running {test_name}", f'bash {bash_file}', return_='tuple', add_message_and_command_line_to_output=True)
-            self.exec_status[test_name] = (exit_code, output)
+            self.exec_status[test_name] = (res, output)
 
             self.results[test_name] = dict(
                 state = 'failed' if res else 'passed',

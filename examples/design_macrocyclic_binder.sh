@@ -9,7 +9,7 @@
 inference.output_prefix=example_outputs/diffused_binder_cyclic2 \
 inference.num_designs=2 \
 'contigmap.contigs=[12-18 A3-117/0]' \
-inference.input_pdb=/input_pdbs/7zkr_GABARAP.pdb \
+inference.input_pdb=./input_pdbs/7zkr_GABARAP.pdb \
 inference.cyclic=True \
 diffuser.T=50 \
 inference.cyc_chains='a' \
