@@ -118,15 +118,25 @@ class TestSubmissionCommands(unittest.TestCase):
                 inference.final_step=48
         """
         out_lines=[]
+        command_lines = []
+        in_command = False
         with open(bash_file, "r") as f:
-            lines = f.readlines()
-            for line in lines:
-                if not (line.startswith("python") or line.startswith("../")):
+            for line in f:
+                stripped = line.strip()
+                if stripped.startswith("python") or stripped.startswith("../"):
+                    in_command = True
+                if in_command:
+                    # Remove trailing line continuation slashes
+                    if stripped.endswith("\\"):
+                        command_lines.append(stripped[:-1].strip())
+                    else:
+                        command_lines.append(stripped)
+                        in_command = False # End of command
+                else: 
                     out_lines.append(line)
-                else:
-                    command = line.strip()
-            if not command.startswith("python"):
-                command = f'python {command}'
+        if not command_lines:
+            raise ValueError(f"No valid python command found in {bash_file}")
+        command = " ".join(command_lines)
         # get the partial_T
         if "partial_T" in command:
             final_step = int(command.split("partial_T=")[1].split(" ")[0]) - 2
