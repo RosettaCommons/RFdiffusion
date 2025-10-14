@@ -25,6 +25,8 @@ class TestSubmissionCommands(unittest.TestCase):
     outputs are the same as the reference outputs.
     """
 
+    failed_tests = []
+
     def setUp(self):
         """
         Grabs files from the examples folder
@@ -66,9 +68,16 @@ class TestSubmissionCommands(unittest.TestCase):
     def test_examples_run_without_errors(self):
         for name, (exit_code, output) in sorted(self.exec_status.items()):
             with self.subTest(example=name):
+                if exit_code != 0:
+                    self.__class__.failed_tests.append(f"{name}")
                 self.assertEqual(exit_code, 0,
                                  msg=f"Example '{name}' exited with {exit_code}\n{output}")
 
+        sys.stderr.write("\n==== EXAMPLE FAILURE SUMMARY ====\n")
+        for line in self.__class__.failed_tests:
+            sys.stderr.write(f" - {line}\n")
+        sys.stderr.write("=========================\n\n")
+        sys.stderr.flush()
 
 
     def test_commands(self):
@@ -167,7 +176,6 @@ class TestSubmissionCommands(unittest.TestCase):
             for line in out_lines:
                 f.write(line)
             f.write(output_command)
-
 
 
 def execute_through_pty(command_line):
