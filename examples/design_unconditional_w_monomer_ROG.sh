@@ -7,4 +7,4 @@
 # We use the monomer_ROG potential, with guide scale 2 and quadratic decay
 # Note that this potential is probably not necessary in this kind of case, but is provided as an example
 
-../scripts/run_inference.py inference.output_prefix=example_outputs/design_monomer_ROG_unconditional 'contigmap.contigs=[100-200]' inference.num_designs=2 'potentials.guiding_potentials=["type:monomer_ROG,weight:1,min_dist:5"]' potentials.guide_scale=2 potentials.guide_decay="quadratic"
+../scripts/run_inference.py inference.output_prefix=example_outputs/design_monomer_ROG_unconditional 'contigmap.contigs=[100-200]' inference.num_designs=10 'potentials.guiding_potentials=["type:monomer_ROG,weight:1,min_dist:5"]' potentials.guide_scale=2 potentials.guide_decay="quadratic"
