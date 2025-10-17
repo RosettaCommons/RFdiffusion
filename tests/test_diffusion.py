@@ -61,7 +61,7 @@ class TestSubmissionCommands(unittest.TestCase):
 
         now = datetime.datetime.now()
         now = now.strftime("%Y_%m_%d_%H_%M_%S")
-        self.out_f = f"{script_dir}/tests_{now}"
+        self.out_f = f"{script_dir}/tests_{now}_{idx}"
         os.mkdir(self.out_f)
 
         # Make sure we have access to all the relevant files
