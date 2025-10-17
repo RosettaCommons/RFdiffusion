@@ -11,6 +11,7 @@ import sys, json
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
+
 class TestSubmissionCommands(unittest.TestCase):
     """
     Test harness for checking that commands in the examples folder,
@@ -27,12 +28,37 @@ class TestSubmissionCommands(unittest.TestCase):
 
     failed_tests = []
 
+    # number of chunks to split examples into
+    total_chunks = 1
+    # which chunk to run
+    chunk_index = 1
+
     def setUp(self):
         """
         Grabs files from the examples folder
         """
         submissions = glob.glob(f"{script_dir}/../examples/*.sh")
         # get datetime for output folder, in YYYY_MM_DD_HH_MM_SS format
+        chunks = self.__class__.total_chunks
+        idx = self.__class__.chunk_index
+        if chunks < 1:
+            raise ValueError("total_chunks must be at least 1")
+        if idx < 1 or idx > chunks:
+            raise ValueError(
+                "chunk_index must be between 1 and total_chunks (inclusive)"
+            )
+        if chunks > 1:
+            submissions = [
+                submissions[i]
+                for i in range(len(submissions))
+                if i % chunks == (idx - 1)
+            ]
+            print(
+                f"Running chunk {idx}/{chunks}, {len(submissions)} submissions to run"
+            )
+        if not submissions:
+            raise ValueError("No submissions selected for chunk {idx} of {chunks}")
+
         now = datetime.datetime.now()
         now = now.strftime("%Y_%m_%d_%H_%M_%S")
         self.out_f = f"{script_dir}/tests_{now}"
@@ -41,37 +67,54 @@ class TestSubmissionCommands(unittest.TestCase):
         # Make sure we have access to all the relevant files
         exclude_dirs = ["outputs", "example_outputs"]
         for filename in os.listdir(f"{script_dir}/../examples"):
-            if filename not in exclude_dirs and not os.path.islink(os.path.join(script_dir, filename)) and os.path.isdir(os.path.join(f'{script_dir}/../examples', filename)):
-                os.symlink(os.path.join(f'{script_dir}/../examples', filename), os.path.join(script_dir, filename))
+            if (
+                filename not in exclude_dirs
+                and not os.path.islink(os.path.join(script_dir, filename))
+                and os.path.isdir(os.path.join(f"{script_dir}/../examples", filename))
+            ):
+                os.symlink(
+                    os.path.join(f"{script_dir}/../examples", filename),
+                    os.path.join(script_dir, filename),
+                )
 
         for submission in submissions:
             self._write_command(submission, self.out_f)
 
-        print(f"Running commands in {self.out_f}, two steps of diffusion, deterministic=True")
+        print(
+            f"Running commands in {self.out_f}, two steps of diffusion, deterministic=True"
+        )
 
         self.results = {}
         self.exec_status = {}
 
-        for bash_file in sorted( glob.glob(f"{self.out_f}/*.sh"), reverse=False):
-            test_name = os.path.basename(bash_file)[:-len('.sh')]
-            res, output = execute(f"Running {test_name}", f'bash {bash_file}', return_='tuple', add_message_and_command_line_to_output=True)
+        for bash_file in sorted(glob.glob(f"{self.out_f}/*.sh"), reverse=False):
+            test_name = os.path.basename(bash_file)[: -len(".sh")]
+            res, output = execute(
+                f"Running {test_name}",
+                f"bash {bash_file}",
+                return_="tuple",
+                add_message_and_command_line_to_output=True,
+            )
             self.exec_status[test_name] = (res, output)
 
             self.results[test_name] = dict(
-                state = 'failed' if res else 'passed',
-                log = output,
+                state="failed" if res else "passed",
+                log=output,
             )
 
-            #subprocess.run(["bash", bash_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            #subprocess.run(["bash", bash_file])
+            # subprocess.run(["bash", bash_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # subprocess.run(["bash", bash_file])
 
     def test_examples_run_without_errors(self):
         for name, (exit_code, output) in sorted(self.exec_status.items()):
             with self.subTest(example=name):
                 if exit_code != 0:
                     self.__class__.failed_tests.append(f"{name}")
-                self.assertEqual(exit_code, 0,
-                                 msg=f"Example '{name}' exited with {exit_code}\n{output}")
+                self.assertEqual(
+                    exit_code,
+                    0,
+                    msg=f"Example '{name}' exited with {exit_code}\n{output}",
+                )
 
         sys.stderr.write("\n==== EXAMPLE FAILURE SUMMARY ====\n")
         for line in self.__class__.failed_tests:
@@ -79,50 +122,56 @@ class TestSubmissionCommands(unittest.TestCase):
         sys.stderr.write("=========================\n\n")
         sys.stderr.flush()
 
-
     def test_commands(self):
         """
         Runs all the commands in the test_f folder
         """
-        reference=f'{script_dir}/reference_outputs'
+        reference = f"{script_dir}/reference_outputs"
         os.makedirs(reference, exist_ok=True)
-        test_files=glob.glob(f"{self.out_f}/example_outputs/*pdb")
-        print(f'{self.out_f=} {test_files=}')
+        test_files = glob.glob(f"{self.out_f}/example_outputs/*pdb")
+        print(f"{self.out_f=} {test_files=}")
 
         # first check that we have the right number of outputs
-        #self.assertEqual(len(test_files), len(glob.glob(f"{self.out_f}/*.sh"))), "One or more of the example commands didn't produce an output (check the example command is formatted correctly)"
+        # self.assertEqual(len(test_files), len(glob.glob(f"{self.out_f}/*.sh"))), "One or more of the example commands didn't produce an output (check the example command is formatted correctly)"
 
         result = self.defaultTestResult()
         for test_file in test_files:
             with self.subTest(test_file=test_file):
-                test_pdb=iu.parse_pdb(test_file)
+                test_pdb = iu.parse_pdb(test_file)
                 if not os.path.exists(f"{reference}/{os.path.basename(test_file)}"):
                     copyfile(test_file, f"{reference}/{os.path.basename(test_file)}")
-                    print(f"Created reference file {reference}/{os.path.basename(test_file)}")
+                    print(
+                        f"Created reference file {reference}/{os.path.basename(test_file)}"
+                    )
                 else:
-                    ref_pdb=iu.parse_pdb(f"{reference}/{os.path.basename(test_file)}")
-                    rmsd=calc_rmsd(test_pdb['xyz'][:,:3].reshape(-1,3), ref_pdb['xyz'][:,:3].reshape(-1,3))[0]
+                    ref_pdb = iu.parse_pdb(f"{reference}/{os.path.basename(test_file)}")
+                    rmsd = calc_rmsd(
+                        test_pdb["xyz"][:, :3].reshape(-1, 3),
+                        ref_pdb["xyz"][:, :3].reshape(-1, 3),
+                    )[0]
                     try:
                         self.assertAlmostEqual(rmsd, 0, 2)
                         result.addSuccess(self)
                         print(f"Subtest {test_file} passed")
 
-                        state = 'passed'
-                        log = f'Subtest {test_file} passed'
+                        state = "passed"
+                        log = f"Subtest {test_file} passed"
 
                     except AssertionError as e:
                         result.addFailure(self, e)
                         print(f"Subtest {test_file} failed")
 
-                        state = 'failed'
-                        log = f'Subtest {test_file} failed:\n{e!r}'
+                        state = "failed"
+                        log = f"Subtest {test_file} failed:\n{e!r}"
 
-                    self.results[ 'pdb-diff.' + test_file.rpartition('/')[-1] ] = dict(state = state, log = log)
+                    self.results["pdb-diff." + test_file.rpartition("/")[-1]] = dict(
+                        state=state, log=log
+                    )
 
-        with open('.results.json', 'w') as f: json.dump(self.results, f, sort_keys=True, indent=2)
+        with open(".results.json", "w") as f:
+            json.dump(self.results, f, sort_keys=True, indent=2)
 
         self.assertTrue(result.wasSuccessful(), "One or more subtests failed")
-
 
     def _write_command(self, bash_file, test_f) -> None:
         """
@@ -135,7 +184,7 @@ class TestSubmissionCommands(unittest.TestCase):
             else:
                 inference.final_step=48
         """
-        out_lines=[]
+        out_lines = []
         command_lines = []
         in_command = False
         with open(bash_file, "r") as f:
@@ -149,8 +198,8 @@ class TestSubmissionCommands(unittest.TestCase):
                         command_lines.append(stripped[:-1].strip())
                     else:
                         command_lines.append(stripped)
-                        in_command = False # End of command
-                else: 
+                        in_command = False  # End of command
+                else:
                     out_lines.append(line)
         if not command_lines:
             raise ValueError(f"No valid python command found in {bash_file}")
@@ -161,15 +210,16 @@ class TestSubmissionCommands(unittest.TestCase):
         else:
             final_step = 48
 
-        output_command = f"{command} inference.deterministic=True inference.final_step={final_step}"
+        output_command = (
+            f"{command} inference.deterministic=True inference.final_step={final_step}"
+        )
         # replace inference.num_designs with 1
         if "inference.num_designs=" in output_command:
             output_command = f'{output_command.split("inference.num_designs=")[0]}inference.num_designs=1 {" ".join(output_command.split("inference.num_designs=")[1].split(" ")[1:])}'
         else:
-            output_command = f'{output_command} inference.num_designs=1'
+            output_command = f"{output_command} inference.num_designs=1"
         # replace 'example_outputs' with f'{self.out_f}/example_outputs'
         output_command = f'{output_command.split("example_outputs")[0]}{self.out_f}/example_outputs{output_command.split("example_outputs")[1]}'
-
 
         # write the new command
         with open(f"{test_f}/{os.path.basename(bash_file)}", "w") as f:
@@ -184,21 +234,32 @@ def execute_through_pty(command_line):
     if sys.platform == "darwin":
 
         master, slave = pty.openpty()
-        p = subprocess.Popen(command_line, shell=True, stdout=slave, stdin=slave,
-                             stderr=subprocess.STDOUT, close_fds=True)
+        p = subprocess.Popen(
+            command_line,
+            shell=True,
+            stdout=slave,
+            stdin=slave,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+        )
 
         buffer = []
         while True:
             try:
                 if select.select([master], [], [], 0.2)[0]:  # has something to read
                     data = os.read(master, 1 << 22)
-                    if data: buffer.append(data)
+                    if data:
+                        buffer.append(data)
 
-                elif (p.poll() is not None)  and  (not select.select([master], [], [], 0.2)[0] ): break  # process is finished and output buffer if fully read
+                elif (p.poll() is not None) and (
+                    not select.select([master], [], [], 0.2)[0]
+                ):
+                    break  # process is finished and output buffer if fully read
 
-            except OSError: break  # OSError will be raised when child process close PTY descriptior
+            except OSError:
+                break  # OSError will be raised when child process close PTY descriptior
 
-        output = b''.join(buffer).decode(encoding='utf-8', errors='backslashreplace')
+        output = b"".join(buffer).decode(encoding="utf-8", errors="backslashreplace")
 
         os.close(master)
         os.close(slave)
@@ -206,7 +267,7 @@ def execute_through_pty(command_line):
         p.wait()
         exit_code = p.returncode
 
-        '''
+        """
         buffer = []
         while True:
             if select.select([master], [], [], 0.2)[0]:  # has something to read
@@ -227,13 +288,19 @@ def execute_through_pty(command_line):
 
         output = b''.join(buffer).decode(encoding='utf-8', errors='backslashreplace')
         exit_code = p.returncode
-        '''
+        """
 
     else:
 
         master, slave = pty.openpty()
-        p = subprocess.Popen(command_line, shell=True, stdout=slave, stdin=slave,
-                             stderr=subprocess.STDOUT, close_fds=True)
+        p = subprocess.Popen(
+            command_line,
+            shell=True,
+            stdout=slave,
+            stdin=slave,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+        )
 
         os.close(slave)
 
@@ -241,10 +308,12 @@ def execute_through_pty(command_line):
         while True:
             try:
                 data = os.read(master, 1 << 22)
-                if data: buffer.append(data)
-            except OSError: break  # OSError will be raised when child process close PTY descriptior
+                if data:
+                    buffer.append(data)
+            except OSError:
+                break  # OSError will be raised when child process close PTY descriptior
 
-        output = b''.join(buffer).decode(encoding='utf-8', errors='backslashreplace')
+        output = b"".join(buffer).decode(encoding="utf-8", errors="backslashreplace")
 
         os.close(master)
 
@@ -254,39 +323,84 @@ def execute_through_pty(command_line):
     return exit_code, output
 
 
-
-def execute(message, command_line, return_='status', until_successes=False, terminate_on_failure=True, silent=False, silence_output=False, silence_output_on_errors=False, add_message_and_command_line_to_output=False):
-    if not silent: print(message);  print(command_line); sys.stdout.flush();
+def execute(
+    message,
+    command_line,
+    return_="status",
+    until_successes=False,
+    terminate_on_failure=True,
+    silent=False,
+    silence_output=False,
+    silence_output_on_errors=False,
+    add_message_and_command_line_to_output=False,
+):
+    if not silent:
+        print(message)
+        print(command_line)
+        sys.stdout.flush()
     while True:
 
-        #exit_code, output = execute_through_subprocess(command_line)
-        #exit_code, output = execute_through_pexpect(command_line)
+        # exit_code, output = execute_through_subprocess(command_line)
+        # exit_code, output = execute_through_pexpect(command_line)
         exit_code, output = execute_through_pty(command_line)
 
-        if (exit_code  and  not silence_output_on_errors) or  not (silent or silence_output): print(output); sys.stdout.flush();
+        if (exit_code and not silence_output_on_errors) or not (
+            silent or silence_output
+        ):
+            print(output)
+            sys.stdout.flush()
 
-        if exit_code and until_successes: pass  # Thats right - redability COUNT!
-        else: break
+        if exit_code and until_successes:
+            pass  # Thats right - redability COUNT!
+        else:
+            break
 
-        print( "Error while executing {}: {}\n".format(message, output) )
+        print("Error while executing {}: {}\n".format(message, output))
         print("Sleeping 60s... then I will retry...")
-        sys.stdout.flush();
+        sys.stdout.flush()
         time.sleep(60)
 
-    if add_message_and_command_line_to_output: output = message + '\nCommand line: ' + command_line + '\n' + output
+    if add_message_and_command_line_to_output:
+        output = message + "\nCommand line: " + command_line + "\n" + output
 
-    if return_ == 'tuple'  or  return_ == tuple: return(exit_code, output)
+    if return_ == "tuple" or return_ == tuple:
+        return (exit_code, output)
 
     if exit_code and terminate_on_failure:
         print("\nEncounter error while executing: " + command_line)
-        if return_==True: return True
+        if return_ == True:
+            return True
         else:
-            print('\nEncounter error while executing: ' + command_line + '\n' + output);
-            raise BenchmarkError('\nEncounter error while executing: ' + command_line + '\n' + output)
+            print("\nEncounter error while executing: " + command_line + "\n" + output)
+            raise BenchmarkError(
+                "\nEncounter error while executing: " + command_line + "\n" + output
+            )
 
-    if return_ == 'output': return output
-    else: return exit_code
+    if return_ == "output":
+        return output
+    else:
+        return exit_code
 
 
 if __name__ == "__main__":
-    unittest.main()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--total_chunks",
+        type=int,
+        default=1,
+        help="total number of chunks to split the examples into (default: 1)",
+    )
+    parser.add_argument(
+        "--chunk_index",
+        type=int,
+        default=1,
+        help="Which chunk to run (1-based index, default:1)",
+    )
+    args, remaining = parser.parse_known_args()
+
+    TestSubmissionCommands.total_chunks = args.total_chunks
+    TestSubmissionCommands.chunk_index = args.chunk_index
+
+    unittest.main(argv=[sys.argv[0]] + remaining)

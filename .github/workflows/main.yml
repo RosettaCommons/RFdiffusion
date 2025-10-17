@@ -87,7 +87,15 @@ jobs:
     - name: Setup and Run ppi_scaffolds tests
       run: |
         tar -xvf examples/ppi_scaffolds_subset.tar.gz -C examples
-        cd tests && uv run python test_diffusion.py
+        total_chunks=$(nproc) 
+        for chunk_index in $(seq 1 $total_chunks); do
+          echo "Running chunk $chunk_index of $total_chunks"
+          uv run python tests/test_diffusion.py --total-chunks $total_chunks --chunk-index $chunk_index &
+        done
+
+        wait
+        echo "All chunks completed."
+        #cd tests && uv run python test_diffusion.py
 
 
     # - name: Test with pytest
