@@ -90,7 +90,7 @@ jobs:
         total_chunks=$(nproc) 
         for chunk_index in $(seq 1 $total_chunks); do
           echo "Running chunk $chunk_index of $total_chunks"
-          uv run python tests/test_diffusion.py --total-chunks $total_chunks --chunk-index $chunk_index &
+          uv run python tests/test_diffusion.py --total_chunks $total_chunks --chunk_index $chunk_index &
         done
 
         wait
