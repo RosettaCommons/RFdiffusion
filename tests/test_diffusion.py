@@ -33,14 +33,19 @@ class TestSubmissionCommands(unittest.TestCase):
     # which chunk to run
     chunk_index = 1
 
-    def setUp(self):
+    out_f = None
+    results = {}
+    exec_status = {}
+
+    @classmethod
+    def setUpClass(cls):
         """
-        Grabs files from the examples folder
+        Class-level setup: Grabs files from the examples folder, discover & rewrite example commands, then execute them once.
         """
         submissions = glob.glob(f"{script_dir}/../examples/*.sh")
         # get datetime for output folder, in YYYY_MM_DD_HH_MM_SS format
-        chunks = self.__class__.total_chunks
-        idx = self.__class__.chunk_index
+        chunks = cls.total_chunks
+        idx = cls.chunk_index
         if chunks < 1:
             raise ValueError("total_chunks must be at least 1")
         if idx < 1 or idx > chunks:
@@ -61,8 +66,8 @@ class TestSubmissionCommands(unittest.TestCase):
 
         now = datetime.datetime.now()
         now = now.strftime("%Y_%m_%d_%H_%M_%S")
-        self.out_f = f"{script_dir}/tests_{now}_{idx}"
-        os.mkdir(self.out_f)
+        cls.out_f = f"{script_dir}/tests_{now}_{idx}"
+        os.mkdir(cls.out_f)
 
         # Make sure we have access to all the relevant files
         exclude_dirs = ["outputs", "example_outputs"]
@@ -78,16 +83,16 @@ class TestSubmissionCommands(unittest.TestCase):
                 )
 
         for submission in submissions:
-            self._write_command(submission, self.out_f)
+            cls._write_command(submission, cls.out_f)
 
         print(
-            f"Running commands in {self.out_f}, two steps of diffusion, deterministic=True"
+            f"Running commands in {cls.out_f}, two steps of diffusion, deterministic=True"
         )
 
-        self.results = {}
-        self.exec_status = {}
+        cls.results = {}
+        cls.exec_status = {}
 
-        for bash_file in sorted(glob.glob(f"{self.out_f}/*.sh"), reverse=False):
+        for bash_file in sorted(glob.glob(f"{cls.out_f}/*.sh"), reverse=False):
             test_name = os.path.basename(bash_file)[: -len(".sh")]
             res, output = execute(
                 f"Running {test_name}",
@@ -95,9 +100,9 @@ class TestSubmissionCommands(unittest.TestCase):
                 return_="tuple",
                 add_message_and_command_line_to_output=True,
             )
-            self.exec_status[test_name] = (res, output)
+            cls.exec_status[test_name] = (res, output)
 
-            self.results[test_name] = dict(
+            cls.results[test_name] = dict(
                 state="failed" if res else "passed",
                 log=output,
             )
@@ -106,7 +111,7 @@ class TestSubmissionCommands(unittest.TestCase):
             # subprocess.run(["bash", bash_file])
 
     def test_examples_run_without_errors(self):
-        for name, (exit_code, output) in sorted(self.exec_status.items()):
+        for name, (exit_code, output) in sorted(self.__class__.exec_status.items()):
             with self.subTest(example=name):
                 if exit_code != 0:
                     self.__class__.failed_tests.append(f"{name}")
@@ -128,8 +133,8 @@ class TestSubmissionCommands(unittest.TestCase):
         """
         reference = f"{script_dir}/reference_outputs"
         os.makedirs(reference, exist_ok=True)
-        test_files = glob.glob(f"{self.out_f}/example_outputs/*pdb")
-        print(f"{self.out_f=} {test_files=}")
+        test_files = glob.glob(f"{self.__class__.out_f}/example_outputs/*pdb")
+        print(f"{self.__class__.out_f=} {test_files=}")
 
         # first check that we have the right number of outputs
         # self.assertEqual(len(test_files), len(glob.glob(f"{self.out_f}/*.sh"))), "One or more of the example commands didn't produce an output (check the example command is formatted correctly)"
@@ -173,7 +178,8 @@ class TestSubmissionCommands(unittest.TestCase):
 
         self.assertTrue(result.wasSuccessful(), "One or more subtests failed")
 
-    def _write_command(self, bash_file, test_f) -> None:
+    @classmethod
+    def _write_command(cls, bash_file, test_f) -> None:
         """
         Takes a bash file from the examples folder, and writes
         a version of it to the test_f folder.
@@ -219,7 +225,7 @@ class TestSubmissionCommands(unittest.TestCase):
         else:
             output_command = f"{output_command} inference.num_designs=1"
         # replace 'example_outputs' with f'{self.out_f}/example_outputs'
-        output_command = f'{output_command.split("example_outputs")[0]}{self.out_f}/example_outputs{output_command.split("example_outputs")[1]}'
+        output_command = f'{output_command.split("example_outputs")[0]}{cls.out_f}/example_outputs{output_command.split("example_outputs")[1]}'
 
         # write the new command
         with open(f"{test_f}/{os.path.basename(bash_file)}", "w") as f:
