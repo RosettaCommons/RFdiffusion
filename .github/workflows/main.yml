@@ -86,17 +86,40 @@ jobs:
 
     - name: Setup and Run ppi_scaffolds tests
       run: |
+        set -euo pipefail
         tar -xvf examples/ppi_scaffolds_subset.tar.gz -C examples
         total_chunks=$(nproc)
         cd tests 
+
+        #launch all chunks in background and record PIDs + labels
+        decalre -a pics
+        declare -a label_by_pid
+
         for chunk_index in $(seq 1 $total_chunks); do
           echo "Running chunk $chunk_index of $total_chunks"
           uv run python test_diffusion.py --total_chunks $total_chunks --chunk_index $chunk_index &
+          pid=$!
+          pids+=("$pid")
+          label_by_pid["$pid"]="chunk_$chunk_index"
         done
 
-        wait
+        # wait for each and track failures
+        fail=0
+        for pid in "${pids[@]}"; do
+          if ! wait "$pid"; do
+            echo "${label_by_pid[$pid]} failed (PID $pid)"
+            fail=1
+          else
+            echo "✅ ${label_by_pid[$pid]} passed (PID $pid)"
+          fi
+        done
+
+        # make step fail if any chunk failed
+        if [ "$fail" -ne 0 ]; then
+          echo "One or more chunks failed."
+          exit 1
+        fi
         echo "All chunks completed."
-        #cd tests && uv run python test_diffusion.py
 
 
     # - name: Test with pytest
