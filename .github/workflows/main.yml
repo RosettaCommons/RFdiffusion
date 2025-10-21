@@ -86,7 +86,6 @@ jobs:
 
     - name: Setup and Run ppi_scaffolds tests
       run: |
-        set -eu pipefail
         tar -xvf examples/ppi_scaffolds_subset.tar.gz -C examples
         total_chunks=$(nproc)
         cd tests 
@@ -110,7 +109,7 @@ jobs:
             echo "${label_by_pid[$pid]} failed (PID $pid)"
             fail=1
           else
-            echo "✅ ${label_by_pid[$pid]} passed (PID $pid)"
+            echo "${label_by_pid[$pid]} passed (PID $pid)"
           fi
         done
 
