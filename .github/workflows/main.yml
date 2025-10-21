@@ -91,35 +91,25 @@ jobs:
         cd tests 
 
         #launch all chunks in background and record PIDs + labels
-        decalre -a pics
-        declare -a label_by_pid
-
+        pids=""
         for chunk_index in $(seq 1 $total_chunks); do
           echo "Running chunk $chunk_index of $total_chunks"
           uv run python test_diffusion.py --total_chunks $total_chunks --chunk_index $chunk_index &
-          pid=$!
-          pids+=("$pid")
-          label_by_pid["$pid"]="chunk_$chunk_index"
+          pids="$pids $!"
         done
 
         # wait for each and track failures
         fail=0
-        for pid in "${pids[@]}"; do
-          if ! wait "$pid"; do
-            echo "${label_by_pid[$pid]} failed (PID $pid)"
+        for pid in $pids; do
+          if ! wait "$pid"; then
+            echo "A chunk (PID $pid) failed"
             fail=1
           else
-            echo "${label_by_pid[$pid]} passed (PID $pid)"
+            echo "A chunk (PID $pid) passed"
           fi
         done
 
-        # make step fail if any chunk failed
-        if [ "$fail" -ne 0 ]; then
-          echo "One or more chunks failed."
-          exit 1
-        fi
-        echo "All chunks completed."
-
+        exit "$fail"
 
     # - name: Test with pytest
     #   run: |
