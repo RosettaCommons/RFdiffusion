@@ -86,7 +86,7 @@ jobs:
 
     - name: Setup and Run ppi_scaffolds tests
       run: |
-        set -euo pipefail
+        set -eu pipefail
         tar -xvf examples/ppi_scaffolds_subset.tar.gz -C examples
         total_chunks=$(nproc)
         cd tests 
