@@ -74,13 +74,16 @@ class TestSubmissionCommands(unittest.TestCase):
         for filename in os.listdir(f"{script_dir}/../examples"):
             if (
                 filename not in exclude_dirs
-                and not os.path.islink(os.path.join(script_dir, filename))
+                and not os.path.exists(os.path.join(script_dir, filename))
                 and os.path.isdir(os.path.join(f"{script_dir}/../examples", filename))
             ):
-                os.symlink(
-                    os.path.join(f"{script_dir}/../examples", filename),
-                    os.path.join(script_dir, filename),
-                )
+                try:
+                    os.symlink(
+                        os.path.join(f"{script_dir}/../examples", filename),
+                        os.path.join(script_dir, filename),
+                    )
+                except FileExistsError:
+                    pass
 
         for submission in submissions:
             cls._write_command(submission, cls.out_f)
