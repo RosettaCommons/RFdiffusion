@@ -5,6 +5,6 @@
 # This external potential promotes contacts both within (with a relative weight of 1) and between chains (relative weight 0.1)
 # We specify that we want to apply these potentials to all chains, with a guide scale of 2.0 (a sensible starting point)
 # We decay this potential with quadratic form, so that it is applied more strongly initially
-# We specify a total length of 1200aa, so each chain is 100 residues long
+# We specify a total length of 1200aa, so each chain is 100 residues long - length updated to 600aa, so each chain is 50 residues long for testing to run faster
 
-python ../scripts/run_inference.py --config-name=symmetry inference.symmetry="tetrahedral" inference.num_designs=10 inference.output_prefix="example_outputs/tetrahedral_oligo" 'potentials.guiding_potentials=["type:olig_contacts,weight_intra:1,weight_inter:0.1"]' potentials.olig_intra_all=True potentials.olig_inter_all=True potentials.guide_scale=2.0 potentials.guide_decay="quadratic" 'contigmap.contigs=[1200-1200]'
+python ../scripts/run_inference.py --config-name=symmetry inference.symmetry="tetrahedral" inference.num_designs=10 inference.output_prefix="example_outputs/tetrahedral_oligo" 'potentials.guiding_potentials=["type:olig_contacts,weight_intra:1,weight_inter:0.1"]' potentials.olig_intra_all=True potentials.olig_inter_all=True potentials.guide_scale=2.0 potentials.guide_decay="quadratic" 'contigmap.contigs=[600-600]'
