@@ -69,6 +69,13 @@ jobs:
         uv pip install --no-cache-dir -e . --no-deps
         rm -rf ~/.cache # /app/RFdiffusion/tests
 
+    - name: Preseed DGL backend
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.dgl"
+        printf '{"backend": "pytorch"}' > "$HOME/.dgl/config.conf"
+        echo "DGLBACKEND=pytorch" >> "$GITHUB_ENV"
+
     - name: Download weights
       run: |
         mkdir models
