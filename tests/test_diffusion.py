@@ -77,13 +77,10 @@ class TestSubmissionCommands(unittest.TestCase):
                 and not os.path.exists(os.path.join(script_dir, filename))
                 and os.path.isdir(os.path.join(f"{script_dir}/../examples", filename))
             ):
-                try:
-                    os.symlink(
-                        os.path.join(f"{script_dir}/../examples", filename),
-                        os.path.join(script_dir, filename),
-                    )
-                except FileExistsError:
-                    pass
+                os.symlink(
+                    os.path.join(f"{script_dir}/../examples", filename),
+                    os.path.join(script_dir, filename),
+                )
 
         for submission in submissions:
             cls._write_command(submission, cls.out_f)
