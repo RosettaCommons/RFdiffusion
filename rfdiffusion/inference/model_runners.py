@@ -19,7 +19,8 @@ import string
 from rfdiffusion.model_input_logger import pickle_function_call
 import sys
 
-SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
+from rfdiffusion.util import USER_DIR
+
 
 TOR_INDICES  = util.torsion_indices
 TOR_CAN_FLIP = util.torsion_can_flip
@@ -64,7 +65,8 @@ class Sampler:
         if conf.inference.model_directory_path is not None:
             model_directory = conf.inference.model_directory_path
         else:
-            model_directory = f"{SCRIPT_DIR}/../../models"
+            # set default model weigths directory under env var control. fallback to user $HOME/rfdiffusion/models
+            model_directory = os.environ.get('RFD_MODELS',f"{USER_DIR}/models")
 
         print(f"Reading models from {model_directory}")
 
@@ -123,7 +125,7 @@ class Sampler:
         if conf.inference.schedule_directory_path is not None:
             schedule_directory = conf.inference.schedule_directory_path
         else:
-            schedule_directory = f"{SCRIPT_DIR}/../../schedules"
+            schedule_directory = f"{USER_DIR}/schedules"
 
         # Check for cache schedule
         if not os.path.exists(schedule_directory):
