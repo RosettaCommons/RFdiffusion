@@ -69,6 +69,13 @@ jobs:
         uv pip install --no-cache-dir -e . --no-deps
         rm -rf ~/.cache # /app/RFdiffusion/tests
 
+    - name: Preseed DGL backend
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.dgl"
+        printf '{"backend": "pytorch"}' > "$HOME/.dgl/config.conf"
+        echo "DGLBACKEND=pytorch" >> "$GITHUB_ENV"
+
     - name: Download weights
       run: |
         mkdir models
@@ -87,8 +94,29 @@ jobs:
     - name: Setup and Run ppi_scaffolds tests
       run: |
         tar -xvf examples/ppi_scaffolds_subset.tar.gz -C examples
-        cd tests && uv run python test_diffusion.py
+        total_chunks=$(nproc)
+        cd tests 
 
+        #launch all chunks in background and record PIDs + labels
+        pids=""
+        for chunk_index in $(seq 1 $total_chunks); do
+          echo "Running chunk $chunk_index of $total_chunks"
+          uv run python test_diffusion.py --total_chunks $total_chunks --chunk_index $chunk_index &
+          pids="$pids $!"
+        done
+
+        # wait for each and track failures
+        fail=0
+        for pid in $pids; do
+          if ! wait "$pid"; then
+            echo "A chunk (PID $pid) failed"
+            fail=1
+          else
+            echo "A chunk (PID $pid) passed"
+          fi
+        done
+
+        exit "$fail"
 
     # - name: Test with pytest
     #   run: |
