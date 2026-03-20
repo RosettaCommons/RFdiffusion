@@ -6,7 +6,7 @@ import torch.nn.functional as nn
 from rfdiffusion.diffusion import get_beta_schedule
 from scipy.spatial.transform import Rotation as scipy_R
 from rfdiffusion.util import rigid_from_3_points
-from rfdiffusion.util_module import ComputeAllAtomCoords
+
 from rfdiffusion import util
 import random
 import logging
@@ -152,7 +152,6 @@ def get_next_ca(
         noise_scale: scale factor for the noise being added
 
     """
-    get_allatom = ComputeAllAtomCoords().to(device=xt.device)
     L = len(xt)
 
     # bring to origin after global alignment (when don't have a motif) or replace input motif and bring to origin, and then scale
@@ -435,7 +434,6 @@ class Denoise:
             include_motif_sidechains (bool): Provide sidechains of the fixed motif to the model
         """
 
-        get_allatom = ComputeAllAtomCoords().to(device=xt.device)
         L, n_atom = xt.shape[:2]
         assert (xt.shape[1] == 14) or (xt.shape[1] == 27)
         assert (px0.shape[1] == 14) or (px0.shape[1] == 27)
