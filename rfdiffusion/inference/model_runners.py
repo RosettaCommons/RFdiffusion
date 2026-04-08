@@ -358,15 +358,15 @@ class Sampler:
                     chain_id = available_chains[0]
                     available_chains.remove(chain_id)
                 # Otherwise, use the chain of the fixed (motif) residues
+                # If fixed residues span multiple input chains (motif stitching), use the first one
                 else:
-                    assert len(chain_ids) == 1, f"Error: Multiple chain IDs in chain: {chain_ids}"
-                    chain_id = list(chain_ids)[0]
+                    chain_id = sorted(chain_ids)[0]
                 self.chain_idx += [chain_id] * (last_res - first_res)
             # If this is a fixed chain, maintain the chain and residue numbering
             else:
                 self.idx_pdb += [contig_ref[1] for contig_ref in self.contig_map.ref[first_res: last_res]]
-                assert len(chain_ids) == 1, f"Error: Multiple chain IDs in chain: {chain_ids}"
-                self.chain_idx += [list(chain_ids)[0]] * (last_res - first_res)
+                chain_id = sorted(chain_ids)[0]
+                self.chain_idx += [chain_id] * (last_res - first_res)
             first_res = last_res
 
         ####################################
