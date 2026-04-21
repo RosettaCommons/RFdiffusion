@@ -11,6 +11,7 @@ inference:
   model_only_neighbors: False
   output_prefix: samples/design
   write_trajectory: True
+  empty_cache_per_design: False
   scaffold_guided: False
   model_runner: SelfConditioning
   cautious: True
