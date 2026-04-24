@@ -49,7 +49,7 @@ def evaluate(model: nn.Module,
         for callback in callbacks:
             callback.on_batch_start()
 
-        with torch.cuda.amp.autocast(enabled=args.amp):
+        with torch.amp.autocast('cuda', enabled=args.amp):
             pred = model(*input)
 
             for callback in callbacks:
