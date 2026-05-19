@@ -4,7 +4,6 @@ from omegaconf import DictConfig
 import torch
 import torch.nn.functional as nn
 from rfdiffusion.diffusion import get_beta_schedule
-from scipy.spatial.transform import Rotation as scipy_R
 from rfdiffusion.util import rigid_from_3_points
 from rfdiffusion.util_module import ComputeAllAtomCoords
 from rfdiffusion import util
@@ -53,9 +52,9 @@ def get_next_frames(xt, px0, t, diffuser, so3_type, diffusion_mask, noise_scale=
 
     R_t, Ca_t = rigid_from_3_points(N_t, Ca_t, C_t)
 
-    # this must be to normalize them or something
-    R_0 = scipy_R.from_matrix(R_0.squeeze().numpy()).as_matrix()
-    R_t = scipy_R.from_matrix(R_t.squeeze().numpy()).as_matrix()
+    # rigid_from_3_points already returns proper rotation matrices; convert to numpy.
+    R_0 = R_0.squeeze().numpy()
+    R_t = R_t.squeeze().numpy()
 
     L = R_t.shape[0]
     all_rot_transitions = np.broadcast_to(np.identity(3), (L, 3, 3)).copy()
@@ -122,6 +121,33 @@ def get_mu_xt_x0(xt, px0, t, beta_schedule, alphabar_schedule, eps=1e-6):
     return mu, sigma
 
 
+def get_mu_xt_x0_ddim(xt, px0, t, alphabar_schedule, eps=1e-8):
+    """
+    Deterministic DDIM update for Cα coordinates (Song et al., 2021).
+
+    Unlike DDPM, DDIM skips the stochastic noise term and uses:
+        x_{t-1} = sqrt(alpha_bar_{t-1}) * x̂_0
+                + sqrt(1 - alpha_bar_{t-1}) * epsilon_theta(x_t, t)
+    where epsilon_theta is the implied noise direction derived from x_t and x̂_0.
+
+    Setting noise_scale=0 in DDPM is not equivalent — DDIM uses a different mean.
+    """
+    t_idx = t - 1
+    xt_ca  = xt[:, 1, :]
+    px0_ca = px0[:, 1, :]
+
+    alphabar_t   = alphabar_schedule[t_idx]
+    alphabar_tm1 = alphabar_schedule[t_idx - 1] if t_idx > 0 else torch.ones(1, dtype=xt.dtype, device=xt.device)
+
+    # Implied noise direction
+    eps_theta = (xt_ca - torch.sqrt(alphabar_t + eps) * px0_ca) / torch.sqrt(1.0 - alphabar_t + eps)
+
+    # DDIM deterministic update
+    x_tm1 = torch.sqrt(alphabar_tm1) * px0_ca + torch.sqrt(1.0 - alphabar_tm1) * eps_theta
+    delta  = x_tm1 - xt_ca
+    return delta
+
+
 def get_next_ca(
     xt,
     px0,
@@ -131,6 +157,7 @@ def get_next_ca(
     beta_schedule,
     alphabar_schedule,
     noise_scale=1.0,
+    ddim=False,
 ):
     """
     Given full atom x0 prediction (xyz coordinates), diffuse to x(t-1)
@@ -155,24 +182,24 @@ def get_next_ca(
     get_allatom = ComputeAllAtomCoords().to(device=xt.device)
     L = len(xt)
 
-    # bring to origin after global alignment (when don't have a motif) or replace input motif and bring to origin, and then scale
     px0 = px0 * crd_scale
-    xt = xt * crd_scale
+    xt  = xt  * crd_scale
 
-    # get mu(xt, x0)
-    mu, sigma = get_mu_xt_x0(
-        xt, px0, t, beta_schedule=beta_schedule, alphabar_schedule=alphabar_schedule
-    )
-
-    sampled_crds = torch.normal(mu, torch.sqrt(sigma * noise_scale))
-    delta = sampled_crds - xt[:, 1, :]  # check sign of this is correct
+    if ddim:
+        # Deterministic DDIM update — faster convergence, no stochastic noise
+        delta = get_mu_xt_x0_ddim(xt, px0, t, alphabar_schedule=alphabar_schedule)
+    else:
+        # Stochastic DDPM update
+        mu, sigma = get_mu_xt_x0(
+            xt, px0, t, beta_schedule=beta_schedule, alphabar_schedule=alphabar_schedule
+        )
+        sampled_crds = torch.normal(mu, torch.sqrt(sigma * noise_scale))
+        delta = sampled_crds - xt[:, 1, :]
 
     if not diffusion_mask is None:
-        # Don't move motif
         delta[diffusion_mask, ...] = 0
 
     out_crds = xt + delta[:, None, :]
-
     return out_crds / crd_scale, delta / crd_scale
 
 
@@ -243,13 +270,14 @@ class Denoise:
         crd_scale=1 / 15,
         potential_manager=None,
         partial_T=None,
+        ddim=False,
     ):
         """
-
         Parameters:
             noise_level: scaling on the noise added (set to 0 to use no noise,
                 to 1 to have full noise)
-
+            ddim: use deterministic DDIM update for Cα coordinates instead of
+                stochastic DDPM.  Enables fewer-step inference at equivalent quality.
         """
         self.T = T
         self.L = L
@@ -267,6 +295,7 @@ class Denoise:
         self.final_noise_scale_frame = final_noise_scale_frame
         self.frame_noise_schedule_type = frame_noise_schedule_type
         self.potential_manager = potential_manager
+        self.ddim = ddim
         self._log = logging.getLogger(__name__)
 
         self.schedule, self.alpha_schedule, self.alphabar_schedule = get_beta_schedule(
@@ -464,6 +493,7 @@ class Denoise:
             beta_schedule=self.schedule,
             alphabar_schedule=self.alphabar_schedule,
             noise_scale=noise_scale_ca,
+            ddim=self.ddim,
         )
 
         # get the next set of backbone frames (coordinates)

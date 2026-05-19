@@ -15,14 +15,53 @@ def hat(v):
     hat_v[:, 0, 1], hat_v[:, 0, 2], hat_v[:, 1, 2] = -v[:, 2], v[:, 1], -v[:, 0]
     return hat_v + -hat_v.transpose(2, 1)
 
-# Logarithmic map from SO(3) to R^3 (i.e. rotation vector)
+def hat_batch(v):
+    """Batch hat map: [..., 3] -> [..., 3, 3] (cross-product / skew-symmetric matrix)."""
+    bshape = v.shape[:-1]
+    h = torch.zeros(*bshape, 3, 3, device=v.device, dtype=v.dtype)
+    h[..., 0, 1] = -v[..., 2]
+    h[..., 0, 2] =  v[..., 1]
+    h[..., 1, 0] =  v[..., 2]
+    h[..., 1, 2] = -v[..., 0]
+    h[..., 2, 0] = -v[..., 1]
+    h[..., 2, 1] =  v[..., 0]
+    return h
+
+def Log_torch(R):
+    """On-device rotation matrix -> rotation vector. R: [..., 3, 3] -> [..., 3].
+    Stays on the original device/dtype — no scipy or CPU transfers."""
+    trace = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]
+    theta = torch.acos(torch.clamp((trace - 1.0) / 2.0, -1.0, 1.0))
+    skew = torch.stack([
+        R[..., 2, 1] - R[..., 1, 2],
+        R[..., 0, 2] - R[..., 2, 0],
+        R[..., 1, 0] - R[..., 0, 1],
+    ], dim=-1)
+    sin_theta = torch.clamp(torch.sin(theta), min=1e-7)
+    axis = skew / (2.0 * sin_theta[..., None])
+    rotvec = axis * theta[..., None]
+    return torch.where(theta[..., None] < 1e-6, torch.zeros_like(rotvec), rotvec)
+
+def Exp_torch(v):
+    """On-device rotation vector -> rotation matrix. v: [..., 3] -> [..., 3, 3].
+    Rodrigues formula. Stays on the original device/dtype."""
+    theta = torch.norm(v, dim=-1)
+    theta_safe = torch.clamp(theta, min=1e-7)
+    axis = v / theta_safe[..., None]
+    K = hat_batch(axis)
+    I = torch.eye(3, device=v.device, dtype=v.dtype).expand(*v.shape[:-1], 3, 3)
+    sin_t = torch.sin(theta)[..., None, None]
+    cos_t = torch.cos(theta)[..., None, None]
+    R = I + sin_t * K + (1.0 - cos_t) * (K @ K)
+    return torch.where(theta[..., None, None] < 1e-7, I, R)
+
+# Logarithmic map from SO(3) to R^3 (i.e. rotation vector) — legacy CPU version
 def Log(R): return torch.tensor(Rotation.from_matrix(R.numpy()).as_rotvec())
-    
+
 # logarithmic map from SO(3) to so(3), this is the matrix logarithm
 def log(R): return hat(Log(R))
 
-# Exponential map from vector space of so(3) to SO(3), this is the matrix
-# exponential combined with the "hat" map
+# Exponential map from vector space of so(3) to SO(3) — legacy CPU version
 def Exp(A): return torch.tensor(Rotation.from_rotvec(A.numpy()).as_matrix())
 
 # Angle of rotation SO(3) to R^+

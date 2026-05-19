@@ -60,20 +60,14 @@ class Attention(nn.Module):
         B, Q = query.shape[:2]
         B, K = key.shape[:2]
         #
-        query = self.to_q(query).reshape(B, Q, self.h, self.dim)
-        key = self.to_k(key).reshape(B, K, self.h, self.dim)
-        value = self.to_v(value).reshape(B, K, self.h, self.dim)
-        #
-        query = query * self.scaling
-        attn = einsum('bqhd,bkhd->bhqk', query, key)
-        attn = F.softmax(attn, dim=-1)
-        #
-        out = einsum('bhqk,bkhd->bqhd', attn, value)
-        out = out.reshape(B, Q, self.h*self.dim)
-        #
-        out = self.to_out(out)
-
-        return out
+        # (B, seq, h, d) -> (B, h, seq, d) for scaled_dot_product_attention
+        query = self.to_q(query).reshape(B, Q, self.h, self.dim).transpose(1, 2)
+        key   = self.to_k(key  ).reshape(B, K, self.h, self.dim).transpose(1, 2)
+        value = self.to_v(value).reshape(B, K, self.h, self.dim).transpose(1, 2)
+        # scaling and softmax handled internally; uses Flash Attention when available
+        out = F.scaled_dot_product_attention(query, key, value)  # (B, h, Q, d)
+        out = out.transpose(1, 2).reshape(B, Q, self.h * self.dim)
+        return self.to_out(out)
 
 class AttentionWithBias(nn.Module):
     def __init__(self, d_in=256, d_bias=128, n_head=8, d_hidden=32):
@@ -117,22 +111,17 @@ class AttentionWithBias(nn.Module):
         x = self.norm_in(x)
         bias = self.norm_bias(bias)
         #
-        query = self.to_q(x).reshape(B, L, self.h, self.dim)
-        key = self.to_k(x).reshape(B, L, self.h, self.dim)
-        value = self.to_v(x).reshape(B, L, self.h, self.dim)
-        bias = self.to_b(bias) # (B, L, L, h)
-        gate = torch.sigmoid(self.to_g(x))
-        #
-        key = key * self.scaling
-        attn = einsum('bqhd,bkhd->bqkh', query, key)
-        attn = attn + bias
-        attn = F.softmax(attn, dim=-2)
-        #
-        out = einsum('bqkh,bkhd->bqhd', attn, value).reshape(B, L, -1)
+        # (B, L, h, d) -> (B, h, L, d); bias (B, L, L, h) -> (B, h, L, L)
+        query = self.to_q(x).reshape(B, L, self.h, self.dim).transpose(1, 2)
+        key   = self.to_k(x).reshape(B, L, self.h, self.dim).transpose(1, 2)
+        value = self.to_v(x).reshape(B, L, self.h, self.dim).transpose(1, 2)
+        bias  = self.to_b(bias).permute(0, 3, 1, 2)  # (B, h, L, L)
+        gate  = torch.sigmoid(self.to_g(x))
+        # bias added to logits before softmax; Flash Attention used when available
+        out = F.scaled_dot_product_attention(query, key, value, attn_mask=bias)
+        out = out.transpose(1, 2).reshape(B, L, -1)  # (B, L, h*d)
         out = gate * out
-        #
-        out = self.to_out(out)
-        return out
+        return self.to_out(out)
 
 # MSA Attention (row/column) from AlphaFold architecture
 class SequenceWeight(nn.Module):
@@ -265,19 +254,20 @@ class MSAColAttention(nn.Module):
         msa = self.norm_msa(msa)
         #
         query = self.to_q(msa).reshape(B, N, L, self.h, self.dim)
-        key = self.to_k(msa).reshape(B, N, L, self.h, self.dim)
+        key   = self.to_k(msa).reshape(B, N, L, self.h, self.dim)
         value = self.to_v(msa).reshape(B, N, L, self.h, self.dim)
-        gate = torch.sigmoid(self.to_g(msa))
-        #
-        query = query * self.scaling
-        attn = einsum('bqihd,bkihd->bihqk', query, key)
-        attn = F.softmax(attn, dim=-1)
-        #
-        out = einsum('bihqk,bkihd->bqihd', attn, value).reshape(B, N, L, -1)
+        gate  = torch.sigmoid(self.to_g(msa))
+        # Column attention: for each residue position, attend across N sequences.
+        # Reshape to (B*L, h, N, d) so scaled_dot_product_attention operates over N.
+        q = query.permute(0, 2, 3, 1, 4).reshape(B * L, self.h, N, self.dim)
+        k = key  .permute(0, 2, 3, 1, 4).reshape(B * L, self.h, N, self.dim)
+        v = value.permute(0, 2, 3, 1, 4).reshape(B * L, self.h, N, self.dim)
+        out = F.scaled_dot_product_attention(q, k, v)  # (B*L, h, N, d)
+        out = (out.reshape(B, L, self.h, N, self.dim)
+                  .permute(0, 3, 1, 2, 4)
+                  .reshape(B, N, L, -1))
         out = gate * out
-        #
-        out = self.to_out(out)
-        return out
+        return self.to_out(out)
 
 class MSAColGlobalAttention(nn.Module):
     def __init__(self, d_msa=64, n_head=8, d_hidden=8):
