@@ -4,9 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from opt_einsum import contract as einsum
 import copy
-import dgl
 from rfdiffusion.util import base_indices, RTs_by_torsion, xyzs_in_base_frame, rigid_from_3_points
 
+from se3_transformer.graph import Graph
 
 def find_breaks(ix, thresh=35):
     # finds positions in ix where the jump is greater than 100
@@ -135,11 +135,12 @@ def get_seqsep(idx, cyclic=None):
 def make_full_graph(xyz, pair, idx, top_k=64, kmin=9):
     '''
     Input:
-        - xyz: current backbone cooordinates (B, L, 3, 3)
+        - xyz: current Ca cooordinates (B, L, 3)
         - pair: pair features from Trunk (B, L, L, E)
         - idx: residue index from ground truth pdb
     Output:
-        - G: defined graph
+        - Graph
+        - Pairwise features by edge, 2D Tensor of shape (num_edges,*)
     '''
 
     B, L = xyz.shape[:2]
@@ -151,19 +152,19 @@ def make_full_graph(xyz, pair, idx, top_k=64, kmin=9):
    
     src = b*L+i
     tgt = b*L+j
-    G = dgl.graph((src, tgt), num_nodes=B*L).to(device)
-    G.edata['rel_pos'] = (xyz[b,j,:] - xyz[b,i,:]).detach() # no gradient through basis function
+    G = Graph(torch.stack([src,tgt]),B*L,xyz.reshape(B*L,3).detach(), (torch.arange(B+1)*L).to(device))
 
-    return G, pair[b,i,j][...,None]
+    return G, pair[b,i,j]
 
 def make_topk_graph(xyz, pair, idx, top_k=64, kmin=32, eps=1e-6):
     '''
     Input:
-        - xyz: current backbone cooordinates (B, L, 3, 3)
+        - xyz: current Ca cooordinates (B, L, 3)
         - pair: pair features from Trunk (B, L, L, E)
         - idx: residue index from ground truth pdb
     Output:
-        - G: defined graph
+        - Graph
+        - Pairwise features by edge, 2D Tensor of shape (num_edges,*)
     '''
 
     B, L = xyz.shape[:2]
@@ -189,10 +190,9 @@ def make_topk_graph(xyz, pair, idx, top_k=64, kmin=32, eps=1e-6):
    
     src = b*L+i
     tgt = b*L+j
-    G = dgl.graph((src, tgt), num_nodes=B*L).to(device)
-    G.edata['rel_pos'] = (xyz[b,j,:] - xyz[b,i,:]).detach() # no gradient through basis function
+    G = Graph(torch.stack([src,tgt]),B*L,xyz.reshape(B*L,3).detach(), (torch.arange(B+1)*L).to(device))
 
-    return G, pair[b,i,j][...,None]
+    return G, pair[b,i,j]
 
 def make_rotX(angs, eps=1e-6):
     B,L = angs.shape[:2]
