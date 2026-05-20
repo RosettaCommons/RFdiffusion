@@ -28,6 +28,8 @@ import numpy as np
 import random
 import glob
 
+torch.set_float32_matmul_precision('high')
+
 
 def make_deterministic(seed=0):
     torch.manual_seed(seed)
