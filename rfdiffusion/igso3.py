@@ -29,18 +29,57 @@ def hat_batch(v):
 
 def Log_torch(R):
     """On-device rotation matrix -> rotation vector. R: [..., 3, 3] -> [..., 3].
-    Stays on the original device/dtype — no scipy or CPU transfers."""
-    trace = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]
-    theta = torch.acos(torch.clamp((trace - 1.0) / 2.0, -1.0, 1.0))
+    Stays on the original device — no scipy or CPU transfers.
+    Numerically stable across the full [0, pi] range:
+      - Uses ||skew|| = 2*sin(theta) for theta when cos(theta) < 0 (avoids trace
+        instability near pi where float32 R loses precision in the trace but skew
+        elements remain accurate).
+      - Falls back to R+I decomposition only when sin(theta) is sub-epsilon
+        (skew elements are below float32 resolution, i.e. theta very close to pi).
+    """
+    orig_dtype = R.dtype
+    R64 = R.to(torch.float64)
+    trace = R64[..., 0, 0] + R64[..., 1, 1] + R64[..., 2, 2]
+    cos_theta = torch.clamp((trace - 1.0) / 2.0, -1.0, 1.0)
+
+    # Skew-symmetric part: (R - R^T)_vee = 2*sin(theta)*n_vec (sign-correct for all theta)
     skew = torch.stack([
-        R[..., 2, 1] - R[..., 1, 2],
-        R[..., 0, 2] - R[..., 2, 0],
-        R[..., 1, 0] - R[..., 0, 1],
+        R64[..., 2, 1] - R64[..., 1, 2],
+        R64[..., 0, 2] - R64[..., 2, 0],
+        R64[..., 1, 0] - R64[..., 0, 1],
     ], dim=-1)
-    sin_theta = torch.clamp(torch.sin(theta), min=1e-7)
-    axis = skew / (2.0 * sin_theta[..., None])
-    rotvec = axis * theta[..., None]
-    return torch.where(theta[..., None] < 1e-6, torch.zeros_like(rotvec), rotvec)
+    skew_norm = torch.norm(skew, dim=-1)  # = 2*|sin(theta)|
+    axis = skew / torch.clamp(skew_norm, min=1e-12)[..., None]
+
+    # Theta: acos(cos_theta) for small angles; pi - asin(skew_norm/2) near pi.
+    # The asin estimate uses the skew magnitude directly, avoiding trace instability.
+    theta_trace = torch.acos(cos_theta)
+    theta_asin  = skew.new_full(skew_norm.shape, np.pi) - torch.asin(torch.clamp(skew_norm / 2.0, 0.0, 1.0))
+    theta = torch.where(cos_theta < 0.0, theta_asin, theta_trace)
+    rotvec_std = theta[..., None] * axis
+
+    # Near-pi fallback: when sin(theta) < float32 noise floor in R, skew -> 0 but
+    # R + I = 2*outer(n,n) is still readable.  Use R+I decomposition for axis.
+    diag = torch.stack([R64[..., 0, 0] + 1.0, R64[..., 1, 1] + 1.0, R64[..., 2, 2] + 1.0], dim=-1)
+    ax_mags = torch.sqrt(torch.clamp(diag / 2.0, min=0.0))
+    ref = torch.argmax(diag, dim=-1, keepdim=True)
+    ref_row = torch.gather(R64, -2, ref.unsqueeze(-1).expand(*ref.shape[:-1], 1, 3)).squeeze(-2)
+    signs = torch.sign(ref_row + 1e-30)
+    ref_mask = torch.zeros_like(signs).scatter_(-1, ref, 1.0)
+    signs = signs * (1.0 - ref_mask) + ref_mask
+    ax_pi = ax_mags * signs
+    ax_pi = ax_pi / torch.norm(ax_pi, dim=-1, keepdim=True).clamp(min=1e-15)
+    rotvec_nearpi = ax_pi * theta[..., None]
+
+    # Branch thresholds (based on cos_theta, stable for float32 R inputs):
+    #   near_zero: cos ≈ 1  → identity rotation
+    #   near_pi:   cos ≈ -1 → skew magnitude below float32 noise (~3.5e-4)
+    near_zero = cos_theta[..., None] > (1.0 - 1e-10)
+    near_pi   = cos_theta[..., None] < -(1.0 - 6.25e-8)
+
+    rotvec = torch.where(near_zero, torch.zeros_like(rotvec_std),
+             torch.where(near_pi,   rotvec_nearpi, rotvec_std))
+    return rotvec.to(orig_dtype)
 
 def Exp_torch(v):
     """On-device rotation vector -> rotation matrix. v: [..., 3] -> [..., 3, 3].
