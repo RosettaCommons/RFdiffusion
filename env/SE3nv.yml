@@ -2,7 +2,7 @@ name: SE3nv
 channels:
   - defaults
   - conda-forge
-  - pytorch
+  - pytorch-gpu
   - dglteam
   - nvidia
 dependencies:
