@@ -54,6 +54,7 @@ jobs:
         uv python install 3.9
         uv venv
         uv pip install --no-cache-dir -q \
+          'numpy<2' \
           dgl==1.0.2+cu116 -f https://data.dgl.ai/wheels/cu116/repo.html \
           torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 \
           e3nn==0.3.3 \
