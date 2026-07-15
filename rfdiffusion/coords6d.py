@@ -2,6 +2,7 @@ import numpy as np
 import scipy
 import scipy.spatial
 from rfdiffusion.kinematics import get_dih
+from rfdiffusion.constants import CBETA_A, CBETA_B, CBETA_C
 
 # calculate planar angles defined by 3 sets of points
 def get_angles(a, b, c):
@@ -31,7 +32,7 @@ def get_coords6d(xyz, dmax):
     b = Ca - N
     c = C - Ca
     a = np.cross(b, c)
-    Cb = -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca
+    Cb = CBETA_A*a + CBETA_B*b + CBETA_C*c + Ca
 
     # fast neighbors search to collect all
     # Cb-Cb pairs within dmax

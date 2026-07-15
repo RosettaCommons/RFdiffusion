@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from opt_einsum import contract as einsum
 import torch.utils.checkpoint as checkpoint
+from rfdiffusion.constants import CBETA_A, CBETA_B, CBETA_C
 from rfdiffusion.util import get_tips
 from rfdiffusion.util_module import Dropout, create_custom_forward, rbf, init_lecun_normal, find_breaks
 from rfdiffusion.Attention_module import Attention, FeedForwardLayer, AttentionWithBias
@@ -317,7 +318,7 @@ class Recycling(nn.Module):
         b = Ca - N
         c = C - Ca
         a = torch.cross(b, c, dim=-1)
-        Cb = -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca
+        Cb = CBETA_A*a + CBETA_B*b + CBETA_C*c + Ca
 
         dist = rbf(torch.cdist(Cb, Cb))
         dist = torch.cat((dist, left, right), dim=-1)

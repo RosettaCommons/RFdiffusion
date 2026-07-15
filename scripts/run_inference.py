@@ -22,6 +22,7 @@ from omegaconf import OmegaConf
 import hydra
 import logging
 from rfdiffusion.util import writepdb_multi, writepdb
+from rfdiffusion.constants import AA_MASK_TOKEN, AA_GLYCINE
 from rfdiffusion.inference import utils as iu
 from hydra.core.hydra_config import HydraConfig
 import numpy as np
@@ -124,12 +125,12 @@ def main(conf: HydraConfig) -> None:
 
         # Output glycines, except for motif region
         final_seq = torch.where(
-            torch.argmax(seq_init, dim=-1) == 21, 7, torch.argmax(seq_init, dim=-1)
-        )  # 7 is glycine
+            torch.argmax(seq_init, dim=-1) == AA_MASK_TOKEN, AA_GLYCINE, torch.argmax(seq_init, dim=-1)
+        )
 
         bfacts = torch.ones_like(final_seq.squeeze())
         # make bfact=0 for diffused coordinates
-        bfacts[torch.where(torch.argmax(seq_init, dim=-1) == 21, True, False)] = 0
+        bfacts[torch.where(torch.argmax(seq_init, dim=-1) == AA_MASK_TOKEN, True, False)] = 0
         # pX0 last step
         out = f"{out_prefix}.pdb"
 

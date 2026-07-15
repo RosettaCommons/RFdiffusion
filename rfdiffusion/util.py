@@ -1,6 +1,7 @@
 import scipy.sparse
 from rfdiffusion.chemical import *
 from rfdiffusion.scoring import *
+from rfdiffusion.constants import CBETA_A, CBETA_B, CBETA_C
 
 
 def generate_Cbeta(N, Ca, C):
@@ -9,7 +10,7 @@ def generate_Cbeta(N, Ca, C):
     c = C - Ca
     a = torch.cross(b, c, dim=-1)
     # These are the values used during training
-    Cb = -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca
+    Cb = CBETA_A*a + CBETA_B*b + CBETA_C*c + Ca
     # fd: below matches sidechain generator (=Rosetta params)
     # Cb = -0.57910144 * a + 0.5689693 * b - 0.5441217 * c + Ca
 
@@ -239,7 +240,7 @@ def get_tips(xyz, seq):
         b = Ca - N
         c = C - Ca
         a = torch.cross(b, c, dim=-1)
-        Cb = -0.58273431 * a + 0.56802827 * b - 0.54067466 * c + Ca
+        Cb = CBETA_A * a + CBETA_B * b + CBETA_C * c + Ca
 
         xyz_tips = torch.where(torch.isnan(xyz_tips), Cb, xyz_tips)
     return xyz_tips, mask
