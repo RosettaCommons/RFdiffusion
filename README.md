@@ -65,9 +65,10 @@ We strongly recommend reading this README carefully before getting started with 
 
 If you want to set up RFdiffusion locally, follow the steps below:
 
-To get started using RFdiffusion, clone the repo:
+To get started using RFdiffusion, clone the repo and pip install (preferably in a `venv`):
 ```
 git clone https://github.com/RosettaCommons/RFdiffusion.git
+pip install -e RFdiffusion
 ```
 
 You'll then need to download the model weights into the RFDiffusion directory.
@@ -90,28 +91,9 @@ wget http://files.ipd.uw.edu/pub/RFdiffusion/1befcb9b28e2f778f53d47f18b7597fa/RF
 ```
 
 
-### Conda Install SE3-Transformer
+### Install SE3-Transformer
 
-Ensure that you have either [Anaconda or Miniconda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) installed.
-
-You also need to install [NVIDIA's implementation of SE(3)-Transformers](https://developer.nvidia.com/blog/accelerating-se3-transformers-training-using-an-nvidia-open-source-model-implementation/) Here is how to install the NVIDIA SE(3)-Transformer code:
-
-```
-conda env create -f env/SE3nv.yml
-
-conda activate SE3nv
-cd env/SE3Transformer
-pip install --no-cache-dir -r requirements.txt
-python setup.py install
-cd ../.. # change into the root directory of the repository
-pip install -e . # install the rfdiffusion module from the root of the repository
-```
-Anytime you run diffusion you should be sure to activate this conda environment by running the following command:
-```
-conda activate SE3nv
-```
-Total setup should take less than 30 minutes on a standard desktop computer.
-Note: Due to the variation in GPU types and drivers that users have access to, we are not able to make one environment that will run on all setups. As such, we are only providing a yml file with support for CUDA 11.1 and leaving it to each user to customize it to work on their setups. This customization will involve changing the cudatoolkit and (possibly) the PyTorch version specified in the yml file.
+An updated and slimmed down SE3-Transformer, minimally adjusted to avoid the no longer maintained DGL library, will be pip installed with the package. It provides the same core functionality as before with almost the same api.
 
 ---
 

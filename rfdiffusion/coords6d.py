@@ -30,7 +30,7 @@ def get_coords6d(xyz, dmax):
     # recreate Cb given N,Ca,C
     b = Ca - N
     c = C - Ca
-    a = np.cross(b, c)
+    a = np.cross(b, c, dim=-1)
     Cb = -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca
 
     # fast neighbors search to collect all

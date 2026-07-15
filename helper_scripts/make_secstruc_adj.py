@@ -361,12 +361,12 @@ def get_sse(ca_coord):
     v2 = norm_vector(displacement(atoms2, atoms3))
     v3 = norm_vector(displacement(atoms3, atoms4))
     
-    n1 = np.cross(v1, v2)
-    n2 = np.cross(v2, v3)
+    n1 = np.cross(v1, v2, dim = -1)
+    n2 = np.cross(v2, v3, dim = -1)
     
     # Calculation using atan2, to ensure the correct sign of the angle 
     x = vector_dot(n1,n2)
-    y = vector_dot(np.cross(n1,n2), v2)
+    y = vector_dot(np.cross(n1,n2,dim=-1), v2)
     return np.arctan2(y,x)
 
   _radians_to_angle = 2*np.pi/360

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = 'rfdiffusion'
+version = '1.1.0'
+description = 'RFdiffusion is an open source method for protein structure generation.'
+authors = [{name = 'Rosetta Commons'}]
+urls.Repository = 'https://github.com/RosettaCommons/RFdiffusion'
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "torch",
+    "se3-transformer @ git+https://github.com/jvdoorss/SE3Transformer.git",
+    "omegaconf",
+    "hydra-core",
+    "opt_einsum",
+    "pyrsistent"
+]
+
+[project.scripts]
+run_inference = "scripts.run_inference:main"
+
+[tool.setuptools]
+packages = ["scripts"]
+py-modules = ["rfdiffusion","scripts"]

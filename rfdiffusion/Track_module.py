@@ -233,8 +233,29 @@ class Str2Str(nn.Module):
         nn.init.zeros_(self.embed_e1.bias)
         nn.init.zeros_(self.embed_e2.bias)
     
-    @torch.cuda.amp.autocast(enabled=False)
-    def forward(self, msa, pair, R_in, T_in, xyz, state, idx, motif_mask, cyclic_reses=None, top_k=64, eps=1e-5):
+    @torch.amp.autocast('cuda',enabled=False)
+    def forward(self, 
+                msa: torch.Tensor, 
+                pair: torch.Tensor, 
+                R_in, 
+                T_in, 
+                xyz: torch.Tensor, 
+                state, 
+                idx, 
+                motif_mask: torch.BoolTensor | None, 
+                cyclic_reses: bool | torch.BoolTensor | None = None, 
+                top_k: int = 64, 
+                eps: float = 1e-5):
+        '''
+        Parameters:
+        -----------
+        (B = batch_size, L = chain_lenght)
+        xyz:    Tensor,
+                shape (B, L, 3, 3) with dim2 = [0 (N), 1 (Ca), 2 (C')]
+        pair:   Tensor,
+                shape (B, L, L, _)
+        
+        '''
         B, N, L = msa.shape[:3]
 
         if motif_mask is None:
@@ -259,6 +280,7 @@ class Str2Str(nn.Module):
             G, edge_feats = make_topk_graph(xyz[:,:,1,:], pair, idx, top_k=top_k)
         else:
             G, edge_feats = make_full_graph(xyz[:,:,1,:], pair, idx, top_k=top_k)
+        edge_feats = edge_feats.unsqueeze(-1)
         l1_feats = xyz - xyz[:,:,1,:].unsqueeze(2)
         l1_feats = l1_feats.reshape(B*L, -1, 3)
         
