@@ -47,7 +47,7 @@ def get_ang(a, b, c):
     w /= torch.norm(w, dim=-1, keepdim=True)
     vw = torch.sum(v*w, dim=-1)
 
-    return torch.acos(vw)
+    return torch.acos(torch.clamp(vw, -1.0, 1.0))
 
 # ============================================================
 def get_dih(a, b, c, d):

@@ -3,46 +3,56 @@ import torch
 import pickle
 import numpy as np
 import os
+import math
 import logging
 
-from scipy.spatial.transform import Rotation as scipy_R
-
 from rfdiffusion.util import rigid_from_3_points
-
 from rfdiffusion.util_module import ComputeAllAtomCoords
-
 from rfdiffusion import igso3
 import time
+
+# Module-level cache so IGSO3 lookup tables survive across Diffuser instantiations
+# (avoids redundant disk I/O when generating batches of designs).
+_igso3_cache: dict = {}
 
 torch.set_printoptions(sci_mode=False)
 
 
 def get_beta_schedule(T, b0, bT, schedule_type, schedule_params={}, inference=False):
     """
-    Given a noise schedule type, create the beta schedule
+    Given a noise schedule type, create the beta schedule.
+
+    schedule_type options:
+        "linear"  — Ho et al. (2020) linear schedule, scaled to T steps.
+        "cosine"  — Nichol & Dhariwal (2021) cosine schedule; b0/bT ignored.
     """
-    assert schedule_type in ["linear"]
-
-    # Adjust b0 and bT if T is not 200
-    # This is a good approximation, with the beta correction below, unless T is very small
+    assert schedule_type in ["linear", "cosine"], (
+        f"Unknown schedule type '{schedule_type}'. Choose 'linear' or 'cosine'."
+    )
     assert T >= 15, "With discrete time and T < 15, the schedule is badly approximated"
-    b0 *= 200 / T
-    bT *= 200 / T
 
-    # linear noise schedule
     if schedule_type == "linear":
+        # Scale endpoints to be equivalent to a 200-step schedule
+        b0 *= 200 / T
+        bT *= 200 / T
         schedule = torch.linspace(b0, bT, T)
 
-    else:
-        raise NotImplementedError(f"Schedule of type {schedule_type} not implemented.")
+    elif schedule_type == "cosine":
+        # Cosine schedule from Nichol & Dhariwal (2021), Improved DDPM
+        s = schedule_params.get("s", 0.008)
+        steps = torch.arange(T + 1, dtype=torch.float64)
+        f = torch.cos((steps / T + s) / (1.0 + s) * math.pi / 2.0) ** 2
+        alphabar = (f / f[0]).float()
+        schedule = torch.clamp(1.0 - alphabar[1:] / alphabar[:-1], max=0.999)
 
-    # get alphabar_t for convenience
-    alpha_schedule = 1 - schedule
+    alpha_schedule = 1.0 - schedule
     alphabar_t_schedule = torch.cumprod(alpha_schedule, dim=0)
 
     if inference:
         print(
-            f"With this beta schedule ({schedule_type} schedule, beta_0 = {round(b0, 3)}, beta_T = {round(bT,3)}), alpha_bar_T = {alphabar_t_schedule[-1]}"
+            f"Beta schedule: {schedule_type}, "
+            f"beta_0={schedule[0].item():.5f}, beta_T={schedule[-1].item():.5f}, "
+            f"alpha_bar_T={alphabar_t_schedule[-1].item():.5f}"
         )
 
     return schedule, alpha_schedule, alphabar_t_schedule
@@ -228,6 +238,10 @@ class IGSO3:
         if not os.path.isdir(self.cache_dir):
             os.makedirs(self.cache_dir)
 
+        if cache_fname in _igso3_cache:
+            self._log.info("Using in-memory IGSO3 cache.")
+            return _igso3_cache[cache_fname]
+
         if os.path.exists(cache_fname):
             self._log.info("Using cached IGSO3.")
             igso3_vals = read_pkl(cache_fname)
@@ -241,6 +255,7 @@ class IGSO3:
             )
             write_pkl(cache_fname, igso3_vals)
 
+        _igso3_cache[cache_fname] = igso3_vals
         return igso3_vals
 
     @property
@@ -288,23 +303,29 @@ class IGSO3:
 
     def g(self, t):
         """
-        g returns the drift coefficient at time t
+        g returns the drift coefficient at time t.
 
-        since
-            sigma(t)^2 := \int_0^t g(s)^2 ds,
-        for arbitrary sigma(t) we invert this relationship to compute
-            g(t) = sqrt(d/dt sigma(t)^2).
+        g(t) = sqrt(d/dt sigma(t)^2)
 
-        Args:
-            t: scalar time between 0 and 1
+        For the linear schedule sigma(t) = min_sigma + t*min_b + 0.5*t^2*(max_b - min_b),
+        we derive analytically:
+            d/dt sigma(t)^2 = 2*sigma(t) * (min_b + t*(max_b - min_b))
+        which avoids a per-step autograd call.
 
-        Returns:
-            drift cooeficient as a scalar.
+        For the exponential schedule, autograd is still used as a fallback.
         """
-        t = torch.tensor(t, requires_grad=True)
-        sigma_sqr = self.sigma(t) ** 2
-        grads = torch.autograd.grad(sigma_sqr.sum(), t)[0]
-        return torch.sqrt(grads)
+        if not torch.is_tensor(t):
+            t = torch.tensor(t, dtype=torch.float32)
+
+        if self.schedule == "linear":
+            sigma_t = self.sigma(t)
+            dsigma_dt = self.min_b + t * (self.max_b - self.min_b)
+            return torch.sqrt(2.0 * sigma_t * dsigma_dt)
+        else:
+            t = t.requires_grad_(True)
+            sigma_sqr = self.sigma(t) ** 2
+            grads = torch.autograd.grad(sigma_sqr.sum(), t)[0]
+            return torch.sqrt(grads)
 
     def sample(self, ts, n_samples=1):
         """
@@ -427,12 +448,9 @@ class IGSO3:
             non_diffusion_mask = 1 - diffusion_mask[None, :, None]
             sampled_rots = sampled_rots * non_diffusion_mask
 
-        # Apply sampled rot.
-        R_sampled = (
-            scipy_R.from_rotvec(sampled_rots.reshape(-1, 3))
-            .as_matrix()
-            .reshape(self.T, num_res, 3, 3)
-        )
+        # Apply sampled rot — torch-native Exp map avoids scipy/CPU roundtrip.
+        sampled_rots_t = torch.from_numpy(sampled_rots.reshape(-1, 3)).float()
+        R_sampled = igso3.Exp_torch(sampled_rots_t).numpy().reshape(self.T, num_res, 3, 3)
         R_perturbed = np.einsum("tnij,njk->tnik", R_sampled, R_true)
         perturbed_crds = (
             np.einsum(
@@ -494,11 +512,10 @@ class IGSO3:
         differential equations. arXiv preprint arXiv:2011.13456.
         """
         # compute rotation vector corresponding to prediction of how r_t goes to r_0
-        R_0, R_t = torch.tensor(R_0), torch.tensor(R_t)
+        R_0, R_t = torch.as_tensor(R_0), torch.as_tensor(R_t)
         R_0t = torch.einsum("...ij,...kj->...ik", R_t, R_0)
-        R_0t_rotvec = torch.tensor(
-            scipy_R.from_matrix(R_0t.cpu().numpy()).as_rotvec()
-        ).to(R_0.device)
+        # torch-native Log map: stays on-device, no CPU/scipy roundtrip
+        R_0t_rotvec = igso3.Log_torch(R_0t).to(dtype=torch.float32, device=R_0.device)
 
         # Approximate the score based on the prediction of R0.
         # R_t @ hat(Score_approx) is the score approximation in the Lie algebra
@@ -527,7 +544,8 @@ class IGSO3:
         Perturb_tangent = Delta_r + rot_g * np.sqrt(self.step_size) * Z
         if mask is not None:
             Perturb_tangent *= (1 - mask.long())[:, None, None]
-        Perturb = igso3.Exp(Perturb_tangent)
+        # torch-native Exp map: stays on-device, no scipy roundtrip
+        Perturb = igso3.Exp_torch(Perturb_tangent)
 
         if return_perturb:
             return Perturb
