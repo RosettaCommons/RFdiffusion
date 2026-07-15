@@ -40,6 +40,7 @@ RUN apt-get -q update \
   decorator==5.1.0 \
   hydra-core==1.3.2 \
   pyrsistent==0.19.3 \
+  numpy==1.26.4 \
   /app/RFdiffusion/env/SE3Transformer \
   && pip install --no-cache-dir /app/RFdiffusion --no-deps
   
