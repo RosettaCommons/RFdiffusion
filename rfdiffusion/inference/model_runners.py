@@ -17,6 +17,13 @@ import os
 import string
 
 from rfdiffusion.model_input_logger import pickle_function_call
+from rfdiffusion.validation import (
+    validate_pdb_path,
+    validate_checkpoint_path,
+    validate_contig_string,
+    validate_hotspot_res,
+    validate_diffuser_config,
+)
 import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -111,6 +118,14 @@ class Sampler:
             self._conf.inference.trb_save_ckpt_path is None
         ), "trb_save_ckpt_path is not the place to specify an input model. Specify in inference.ckpt_override_path"
         self._conf["inference"]["trb_save_ckpt_path"] = self.ckpt_path
+
+        # Validate inputs early, before GPU allocation and model loading
+        validate_checkpoint_path(self.ckpt_path)
+        if conf.inference.input_pdb is not None:
+            validate_pdb_path(conf.inference.input_pdb)
+        validate_diffuser_config(conf.diffuser)
+        if conf.ppi.hotspot_res is not None:
+            validate_hotspot_res(conf.ppi.hotspot_res)
 
         #######################
         ### Assemble Config ###
@@ -312,6 +327,10 @@ class Sampler:
         ################################
         ### Generate specific contig ###
         ################################
+
+        # Validate contig string before parsing
+        if self.contig_conf.contigs is not None:
+            validate_contig_string(self.contig_conf.contigs)
 
         # Generate a specific contig from the range of possibilities specified at input
 
