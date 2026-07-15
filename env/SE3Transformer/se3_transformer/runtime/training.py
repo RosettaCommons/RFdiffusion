@@ -90,7 +90,7 @@ def train_epoch(model, train_dataloader, loss_fn, epoch_idx, grad_scaler, optimi
         for callback in callbacks:
             callback.on_batch_start()
 
-        with torch.cuda.amp.autocast(enabled=args.amp):
+        with torch.amp.autocast('cuda', enabled=args.amp):
             pred = model(*inputs)
             loss = loss_fn(pred, target) / args.accumulate_grad_batches
 
@@ -127,7 +127,7 @@ def train(model: nn.Module,
         model = DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
 
     model.train()
-    grad_scaler = torch.cuda.amp.GradScaler(enabled=args.amp)
+    grad_scaler = torch.amp.GradScaler('cuda', enabled=args.amp)
     if args.optimizer == 'adam':
         optimizer = FusedAdam(model.parameters(), lr=args.learning_rate, betas=(args.momentum, 0.999),
                               weight_decay=args.weight_decay)
