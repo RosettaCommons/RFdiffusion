@@ -94,10 +94,13 @@ def main(conf: HydraConfig) -> None:
             px0, x_t, seq_t, plddt = sampler.sample_step(
                 t=t, x_t=x_t, seq_init=seq_t, final_step=sampler.inf_conf.final_step
             )
-            px0_xyz_stack.append(px0)
-            denoised_xyz_stack.append(x_t)
-            seq_stack.append(seq_t)
-            plddt_stack.append(plddt[0])  # remove singleton leading dimension
+            # Move trajectory data to CPU immediately to free GPU memory
+            # for the next denoising step. x_t/seq_t are cloned inside
+            # sample_step, so moving previous outputs to CPU is safe.
+            px0_xyz_stack.append(px0.cpu())
+            denoised_xyz_stack.append(x_t.cpu())
+            seq_stack.append(seq_t.cpu())
+            plddt_stack.append(plddt[0].cpu())  # remove singleton leading dimension
 
         # Flip order for better visualization in pymol
         denoised_xyz_stack = torch.stack(denoised_xyz_stack)
