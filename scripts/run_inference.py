@@ -39,7 +39,7 @@ def make_deterministic(seed=0):
 def main(conf: HydraConfig) -> None:
     log = logging.getLogger(__name__)
     if conf.inference.deterministic:
-        make_deterministic()
+        make_deterministic(conf.inference.seed)
 
     # Check for available GPU and print result of check
     if torch.cuda.is_available():
@@ -70,7 +70,7 @@ def main(conf: HydraConfig) -> None:
 
     for i_des in range(design_startnum, design_startnum + sampler.inf_conf.num_designs):
         if conf.inference.deterministic:
-            make_deterministic(i_des)
+            make_deterministic(conf.inference.seed + i_des)
 
         start_time = time.time()
         out_prefix = f"{sampler.inf_conf.output_prefix}_{i_des}"
