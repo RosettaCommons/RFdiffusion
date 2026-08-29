@@ -34,7 +34,21 @@ from se3_transformer.model.fiber import Fiber
 from se3_transformer.model.layers.convolution import ConvSE3, ConvSE3FuseLevel
 from se3_transformer.model.layers.linear import LinearSE3
 from se3_transformer.runtime.utils import degree_to_dim, aggregate_residual, unfuse_features
-from torch.cuda.nvtx import range as nvtx_range
+try:
+    from torch.cuda.nvtx import range as _nvtx_range_cuda
+    try:
+        with _nvtx_range_cuda("init"):
+            pass
+        nvtx_range = _nvtx_range_cuda
+    except Exception:
+        raise ImportError("NVTX not available at runtime")
+except (ImportError, RuntimeError):
+    from torch.autograd.profiler import record_function
+    from contextlib import contextmanager
+    @contextmanager
+    def nvtx_range(msg, *args, **kwargs):
+        with record_function(msg):
+            yield
 
 
 class AttentionSE3(nn.Module):
@@ -78,7 +92,10 @@ class AttentionSE3(nn.Module):
 
             with nvtx_range('attention dot product + softmax'):
                 # Compute attention weights (softmax of inner product between key and query)
-                edge_weights = dgl.ops.e_dot_v(graph, key, query).squeeze(-1)
+                # Use manual implementation for Ascend NPU compatibility (e_dot_v not supported)
+                dst_nodes = graph.edges()[1]
+                query_dst = query[dst_nodes]
+                edge_weights = (key * query_dst).sum(dim=-1)
                 edge_weights /= np.sqrt(self.key_fiber.num_features)
                 edge_weights = edge_softmax(graph, edge_weights)
                 edge_weights = edge_weights[..., None, None]
