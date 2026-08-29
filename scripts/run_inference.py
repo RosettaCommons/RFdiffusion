@@ -18,6 +18,8 @@ See https://hydra.cc/docs/advanced/hydra-command-line-flags/ for more options.
 import re
 import os, time, pickle
 import torch
+import torch_npu
+torch.npu.config.allow_internal_format = False
 from omegaconf import OmegaConf
 import hydra
 import logging
@@ -41,13 +43,16 @@ def main(conf: HydraConfig) -> None:
     if conf.inference.deterministic:
         make_deterministic()
 
-    # Check for available GPU and print result of check
-    if torch.cuda.is_available():
+    # Check for available NPU/GPU and print result of check
+    if torch.npu.is_available():
+        device_name = torch.npu.get_device_name(torch.npu.current_device())
+        log.info(f"Found NPU with device_name {device_name}. Will run RFdiffusion on {device_name}")
+    elif torch.cuda.is_available():
         device_name = torch.cuda.get_device_name(torch.cuda.current_device())
         log.info(f"Found GPU with device_name {device_name}. Will run RFdiffusion on {device_name}")
     else:
         log.info("////////////////////////////////////////////////")
-        log.info("///// NO GPU DETECTED! Falling back to CPU /////")
+        log.info("///// NO GPU/NPU DETECTED! Falling back to CPU /////")
         log.info("////////////////////////////////////////////////")
 
     # Initialize sampler and target/contig.
@@ -148,9 +153,11 @@ def main(conf: HydraConfig) -> None:
         trb = dict(
             config=OmegaConf.to_container(sampler._conf, resolve=True),
             plddt=plddt_stack.cpu().numpy(),
-            device=torch.cuda.get_device_name(torch.cuda.current_device())
-            if torch.cuda.is_available()
-            else "CPU",
+            device=torch.npu.get_device_name(torch.npu.current_device())
+            if torch.npu.is_available()
+            else (torch.cuda.get_device_name(torch.cuda.current_device())
+                  if torch.cuda.is_available()
+                  else "CPU"),
             time=time.time() - start_time,
         )
         if hasattr(sampler, "contig_map"):
@@ -188,8 +195,11 @@ def main(conf: HydraConfig) -> None:
                 chain_ids=sampler.chain_idx,
             )
 
-        if conf.inference.empty_cache_per_design and torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        if conf.inference.empty_cache_per_design:
+            if torch.npu.is_available():
+                torch.npu.empty_cache()
+            elif torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
         log.info(f"Finished design in {(time.time()-start_time)/60:.2f} minutes")
 

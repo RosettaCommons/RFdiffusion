@@ -27,7 +27,21 @@ from typing import Dict
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.cuda.nvtx import range as nvtx_range
+try:
+    from torch.cuda.nvtx import range as _nvtx_range_cuda
+    try:
+        with _nvtx_range_cuda("init"):
+            pass
+        nvtx_range = _nvtx_range_cuda
+    except Exception:
+        raise ImportError("NVTX not available at runtime")
+except (ImportError, RuntimeError):
+    from torch.autograd.profiler import record_function
+    from contextlib import contextmanager
+    @contextmanager
+    def nvtx_range(msg, *args, **kwargs):
+        with record_function(msg):
+            yield
 
 from se3_transformer.model.fiber import Fiber
 

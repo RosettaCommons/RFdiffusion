@@ -48,8 +48,8 @@ class Sampler:
 
         """
         self._log = logging.getLogger(__name__)
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda")
+        if torch.npu.is_available():
+            self.device = torch.device("npu")
         else:
             self.device = torch.device("cpu")
         needs_model_reload = (
