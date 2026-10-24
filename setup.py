@@ -7,4 +7,5 @@ setup(name='rfdiffusion',
       url='https://github.com/RosettaCommons/RFdiffusion',
       scripts=["scripts/run_inference.py"],
       packages=find_packages(),
+      package_data={'rfdiffusion.inference': ['sym_rots.npz']},
       install_requires=['torch', 'se3-transformer'])
