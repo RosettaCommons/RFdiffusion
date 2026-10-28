@@ -106,6 +106,19 @@ python setup.py install
 cd ../.. # change into the root directory of the repository
 pip install -e . # install the rfdiffusion module from the root of the repository
 ```
+> **Note:** This environment uses Python 3.9, and no pip release that supports Python 3.9 includes the fix for the
+> October 2026 emSign CA certificate incident (pip 26.2.2 requires Python 3.10 or newer). To avoid using a
+> vulnerable pip, you can run the `pip install` commands above with [uv](https://docs.astral.sh/uv/) 0.13.4 or newer
+> instead, inside the activated conda environment:
+> ```
+> curl -LsSf https://astral.sh/uv/install.sh | sh   # or `uv self update` if uv is already installed
+> cd env/SE3Transformer
+> uv pip install --no-cache -r requirements.txt
+> uv pip install .
+> cd ../..
+> uv pip install -e .
+> ```
+> The `pip:` packages in `env/SE3nv.yml` are still installed by conda's pip during `conda env create`.
 Anytime you run diffusion you should be sure to activate this conda environment by running the following command:
 ```
 conda activate SE3nv

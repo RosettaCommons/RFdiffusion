@@ -16,3 +16,4 @@ dependencies:
   - pip:
     - hydra-core
     - pyrsistent
+    - certifi>=2026.10.19  # emSign CA incident, October 2026

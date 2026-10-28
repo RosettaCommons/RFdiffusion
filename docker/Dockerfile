@@ -19,18 +19,23 @@
 
 FROM nvcr.io/nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04
 
+# Install packages with uv rather than pip: no pip release that supports Python 3.9
+# includes the fix for the October 2026 emSign CA incident. uv 0.13.4+ does.
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /uvx /bin/
+
 COPY . /app/RFdiffusion/
 
-RUN apt-get -q update \ 
+RUN apt-get -q update \
   && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+  ca-certificates \
   git \
   python3.9 \
-  python3-pip \
-  && python3.9 -m pip install -q -U --no-cache-dir pip \
   && rm -rf /var/lib/apt/lists/* \
   && apt-get autoremove -y \
   && apt-get clean \
-  && pip install -q --no-cache-dir \
+  && uv pip install --system --python python3.9 -q --no-cache \
+  'numpy<2' \
+  'certifi>=2026.10.19' \
   dgl==1.0.2+cu116 -f https://data.dgl.ai/wheels/cu116/repo.html \
   torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 \
   e3nn==0.3.3 \
@@ -41,7 +46,7 @@ RUN apt-get -q update \
   hydra-core==1.3.2 \
   pyrsistent==0.19.3 \
   /app/RFdiffusion/env/SE3Transformer \
-  && pip install --no-cache-dir /app/RFdiffusion --no-deps
+  && uv pip install --system --python python3.9 --no-cache --no-deps /app/RFdiffusion
   
 WORKDIR /app/RFdiffusion
 
